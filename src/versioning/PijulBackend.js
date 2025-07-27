@@ -22,6 +22,19 @@ class PijulBackend extends VersioningBackend {
   async channel(name) {
     await execa('pijul', ['channel', 'switch', name]);
   }
+
+  async patch(name) {
+    await execa('pijul', ['patch', 'add', name]);
+  }
+
+  async apply(patch) {
+    await execa('pijul', ['apply', patch]);
+  }
+
+  async conflicts() {
+    const { stdout } = await execa('pijul', ['credit']);
+    return stdout;
+  }
 }
 
 module.exports = PijulBackend;

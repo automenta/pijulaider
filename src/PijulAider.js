@@ -22,6 +22,22 @@ class PijulAider {
     this.messages = [];
   }
 
+  async detectBackend() {
+    // TODO: Implement backend detection
+    return 'file';
+  }
+
+  async migrate(from, to) {
+    if (from === 'git' && to === 'pijul') {
+      console.log('To migrate from Git to Pijul, please run the following commands:');
+      console.log('1. Install pijul-git: `cargo install pijul-git`');
+      console.log('2. Run `pijul-git import` in your Git repository.');
+    } else {
+      // TODO: Implement migration
+      console.log(`Migrating from ${from} to ${to}...`);
+    }
+  }
+
   createBackend(backend) {
     switch (backend) {
       case 'file':
@@ -36,6 +52,12 @@ class PijulAider {
   }
 
   async run(files) {
+    const currentBackend = await this.detectBackend();
+    if (currentBackend !== 'pijul' && this.options.backend !== 'pijul') {
+      console.log('Pijul is the recommended versioning backend. Would you like to switch to Pijul? (y/n)');
+      // TODO: Get user input
+    }
+
     for (const file of files) {
       this.backend.add(file);
     }
@@ -45,6 +67,10 @@ class PijulAider {
     const onSendMessage = async (query) => {
       if (query === '/diff') {
         diff = await this.backend.diff();
+        return;
+      } else if (query.startsWith('/edit')) {
+        // TODO: Implement in-file edits
+        console.log('In-file edits are not supported yet.');
         return;
       }
 

@@ -32,6 +32,12 @@ const Chat = ({ messages, onSendMessage, diff }) => {
       <Box>
         <Text>You: </Text>
         <TextInput value={query} onChange={setQuery} onSubmit={handleSubmit} />
+        <Box marginLeft={1}>
+          <Text>🎤</Text>
+        </Box>
+        <Box marginLeft={1}>
+          <Text>🖼️</Text>
+        </Box>
       </Box>
     </Box>
   );
