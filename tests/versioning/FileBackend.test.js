@@ -1,32 +1,49 @@
-const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const FileBackend = require('../../src/versioning/FileBackend');
 
-const TEST_FILE = 'test.txt';
-
 describe('FileBackend', () => {
+  const testFile = 'test.txt';
+  const testFileContent = 'hello world';
+
   beforeEach(() => {
-    fs.writeFileSync(TEST_FILE, 'initial content');
+    fs.writeFileSync(testFile, testFileContent);
   });
 
   afterEach(() => {
-    fs.unlinkSync(TEST_FILE);
-    const backupFiles = fs.readdirSync('.').filter(f => f.startsWith(TEST_FILE));
-    for (const file of backupFiles) {
-      fs.unlinkSync(file);
+    fs.unlinkSync(testFile);
+    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
+    if (backupFile) {
+      fs.unlinkSync(backupFile);
     }
   });
 
-  it('should create a backup of the file on commit', () => {
+  it('should create a backup when adding a file', () => {
     const backend = new FileBackend();
-    backend.add(TEST_FILE);
-    backend.commit('test commit');
+    backend.add(testFile);
+    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
+    expect(backupFile).toBeDefined();
+    const backupContent = fs.readFileSync(backupFile, 'utf-8');
+    expect(backupContent).toBe(testFileContent);
+  });
 
-    const backupFiles = fs.readdirSync('.').filter(f => f.startsWith(TEST_FILE) && f.endsWith('.bak'));
-    assert.strictEqual(backupFiles.length, 1);
+  it('should revert a file to its backup', () => {
+    const backend = new FileBackend();
+    backend.add(testFile);
+    const newContent = 'goodbye world';
+    fs.writeFileSync(testFile, newContent);
+    backend.revert(testFile);
+    const revertedContent = fs.readFileSync(testFile, 'utf-8');
+    expect(revertedContent).toBe(testFileContent);
+  });
 
-    const backupContent = fs.readFileSync(backupFiles[0], 'utf-8');
-    assert.strictEqual(backupContent, 'initial content');
+  it('should show the diff between a file and its backup', async () => {
+    const backend = new FileBackend();
+    backend.add(testFile);
+    const newContent = 'goodbye world';
+    fs.writeFileSync(testFile, newContent);
+    const diff = await backend.diff();
+    expect(diff).toContain('-hello world');
+    expect(diff).toContain('+goodbye world');
   });
 });

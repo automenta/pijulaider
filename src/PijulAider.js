@@ -36,9 +36,18 @@ class PijulAider {
   }
 
   async run(files) {
-    this.backend.add(files);
+    for (const file of files) {
+      this.backend.add(file);
+    }
+
+    let diff = await this.backend.diff();
 
     const onSendMessage = async (query) => {
+      if (query === '/diff') {
+        diff = await this.backend.diff();
+        return;
+      }
+
       this.messages.push({ sender: 'user', text: query });
       const response = await this.chain.invoke({
         input: query,
@@ -47,7 +56,13 @@ class PijulAider {
       this.messages.push({ sender: 'ai', text: response });
     };
 
-    const App = () => <Chat messages={this.messages} onSendMessage={onSendMessage} />;
+    const App = () => (
+      <Chat
+        messages={this.messages}
+        onSendMessage={onSendMessage}
+        diff={diff}
+      />
+    );
 
     render(React.createElement(App));
   }

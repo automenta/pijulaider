@@ -25,9 +25,13 @@
   },
   "homepage": "https://github.com/automenta/pijulaider#readme",
   "dependencies": {
+    "@babel/preset-env": "^7.28.0",
+    "babel-jest": "^30.0.5",
     "commander": "^14.0.0",
+    "execa": "^5.1.1",
     "ink": "^6.1.0",
     "ink-text-input": "^6.0.0",
+    "jest": "^30.0.5",
     "langchain": "^0.3.30",
     "mocha": "^11.7.1",
     "react": "^19.1.0",

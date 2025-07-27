@@ -10,9 +10,10 @@ program
   .option('--backend <backend>', 'The versioning backend to use (file, git, or pijul)', 'file')
   .option('--model <model>', 'The language model to use', 'gpt-4o')
   .argument('<files...>', 'The files to edit')
-  .action((files, options) => {
-    console.log('Files:', files);
-    console.log('Options:', options);
+  .action(async (files, options) => {
+    const PijulAider = require('./PijulAider');
+    const aider = new PijulAider(options);
+    await aider.run(files);
   });
 
 program.parse(process.argv);
