@@ -1,0 +1,40 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "bin": {
+    "pijulaider": "src/index.js"
+  },
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "mocha tests/**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/automenta/pijulaider.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/automenta/pijulaider/issues"
+  },
+  "homepage": "https://github.com/automenta/pijulaider#readme",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "ink": "^6.1.0",
+    "ink-text-input": "^6.0.0",
+    "langchain": "^0.3.30",
+    "mocha": "^11.7.1",
+    "react": "^19.1.0",
+    "ts-node": "^10.9.2"
+  },
+  "devDependencies": {
+    "@types/commander": "^2.12.0",
+    "@types/node": "^24.1.0"
+  }
+}
