@@ -4,10 +4,12 @@ const { StringOutputParser } = require('langchain/schema/output_parser');
 const FileBackend = require('./versioning/FileBackend');
 const GitBackend = require('./versioning/GitBackend');
 const PijulBackend = require('./versioning/PijulBackend');
-
+const { execa } = require('execa');
 const React = require('react');
 const { render } = require('ink');
 const Chat = require('./tui/Chat');
+const { editFile } = require('edit-file');
+const inquirer = require('inquirer');
 
 class PijulAider {
   constructor(options) {
@@ -23,7 +25,24 @@ class PijulAider {
   }
 
   async detectBackend() {
-    // TODO: Implement backend detection
+    try {
+      await execa('git', ['rev-parse', '--is-inside-work-tree']);
+      return 'git';
+    } catch (error) {
+      // Not a git repository
+    }
+
+    try {
+      // How to detect a pijul repo?
+      // For now, we'll just check for a .pijul directory
+      const fs = require('fs');
+      if (fs.existsSync('.pijul')) {
+        return 'pijul';
+      }
+    } catch (error) {
+      // Not a pijul repository
+    }
+
     return 'file';
   }
 
@@ -53,9 +72,24 @@ class PijulAider {
 
   async run(files) {
     const currentBackend = await this.detectBackend();
-    if (currentBackend !== 'pijul' && this.options.backend !== 'pijul') {
-      console.log('Pijul is the recommended versioning backend. Would you like to switch to Pijul? (y/n)');
-      // TODO: Get user input
+    if (currentBackend !== 'pijul' && !this.options.backend) {
+      const { switchToPijul } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'switchToPijul',
+          message: 'Pijul is the recommended versioning backend. Would you like to switch to Pijul?',
+          default: true,
+        },
+      ]);
+
+      if (switchToPijul) {
+        await this.migrate(currentBackend, 'pijul');
+        this.backend = this.createBackend('pijul');
+      } else {
+        this.backend = this.createBackend(currentBackend);
+      }
+    } else {
+      this.backend = this.createBackend(this.options.backend || currentBackend);
     }
 
     for (const file of files) {
@@ -69,8 +103,13 @@ class PijulAider {
         diff = await this.backend.diff();
         return;
       } else if (query.startsWith('/edit')) {
-        // TODO: Implement in-file edits
-        console.log('In-file edits are not supported yet.');
+        const fileToEdit = query.split(' ')[1];
+        if (fileToEdit) {
+          await editFile(fileToEdit);
+          diff = await this.backend.diff();
+        } else {
+          console.log('Please specify a file to edit.');
+        }
         return;
       }
 
@@ -80,6 +119,8 @@ class PijulAider {
         chat_history: this.messages,
       });
       this.messages.push({ sender: 'ai', text: response });
+
+      // TODO: Extract the diff from the response and apply it
     };
 
     const App = () => (

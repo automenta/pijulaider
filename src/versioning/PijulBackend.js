@@ -3,37 +3,71 @@ const VersioningBackend = require('./VersioningBackend');
 
 class PijulBackend extends VersioningBackend {
   async add(file) {
-    await execa('pijul', ['add', file]);
+    try {
+      await execa('pijul', ['add', file]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async record(message) {
-    await execa('pijul', ['record', '-m', message]);
+    try {
+      await execa('pijul', ['record', '-m', message]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async unrecord(hash) {
-    await execa('pijul', ['unrecord', hash]);
+    try {
+      await execa('pijul', ['unrecord', hash]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async diff() {
-    const { stdout } = await execa('pijul', ['diff']);
-    return stdout;
+    try {
+      const { stdout } = await execa('pijul', ['diff']);
+      return stdout;
+    } catch (error) {
+      console.error(error);
+      return '';
+    }
   }
 
   async channel(name) {
-    await execa('pijul', ['channel', 'switch', name]);
+    try {
+      await execa('pijul', ['channel', 'switch', name]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async patch(name) {
-    await execa('pijul', ['patch', 'add', name]);
+    try {
+      await execa('pijul', ['patch', 'add', name]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async apply(patch) {
-    await execa('pijul', ['apply', patch]);
+    try {
+      await execa('pijul', ['apply', patch]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async conflicts() {
-    const { stdout } = await execa('pijul', ['credit']);
-    return stdout;
+    try {
+      const { stdout } = await execa('pijul', ['credit']);
+      return stdout;
+    } catch (error) {
+      console.error(error);
+      return '';
+    }
   }
 }
 
