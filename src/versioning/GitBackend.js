@@ -23,20 +23,41 @@ class GitBackend extends VersioningBackend {
   }
 
   async unrecord(hash) {
-    console.log('Unrecord is not supported by the Git backend.');
+    try {
+      await execa('git', ['revert', '--no-edit', hash]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async channel(name) {
-    console.log('Channels are not supported by the Git backend. Use branches instead.');
+    try {
+      await execa('git', ['checkout', '-b', name]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async apply(patch) {
-    console.log('Apply is not supported by the Git backend. Use `git apply` instead.');
+    try {
+      await execa('git', ['apply', patch]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async conflicts() {
-    console.log('Conflicts are not supported by the Git backend. Use `git status` to see conflicts.');
-    return '';
+    try {
+      const { stdout } = await execa('git', ['status', '--porcelain']);
+      const conflicts = stdout
+        .split('\n')
+        .filter((line) => line.startsWith('U'))
+        .map((line) => line.split(' ')[1]);
+      return JSON.stringify(conflicts, null, 2);
+    } catch (error) {
+      console.error(error);
+      return '';
+    }
   }
 
   async revert(file) {

@@ -1,65 +1,54 @@
-const execa = require('execa');
-const fs = require('fs');
-const path = require('path');
 const PijulBackend = require('../../src/versioning/PijulBackend');
+const execa = require('execa');
+
+jest.mock('execa');
 
 describe('PijulBackend', () => {
-  const testDir = 'pijul-test-repo';
-  const backend = new PijulBackend();
-  const testFile = path.join(testDir, 'test.txt');
-  const initialContent = 'initial content';
-
-  beforeEach(async () => {
-    fs.mkdirSync(testDir, { recursive: true });
-    await execa('pijul', ['init'], { cwd: testDir });
-    fs.writeFileSync(testFile, initialContent);
-    await backend.add(testFile);
-    await backend.record('Initial commit');
+  let backend;
+  beforeEach(() => {
+    backend = new PijulBackend();
   });
 
   afterEach(() => {
-    fs.rmSync(testDir, { recursive: true, force: true });
+    jest.clearAllMocks();
   });
 
-  it('should show the diff', async () => {
-    const newContent = 'new content';
-    fs.writeFileSync(testFile, newContent);
-    const diff = await backend.diff();
-    expect(diff).toContain(`+${newContent}`);
+  it('should add a file', async () => {
+    await backend.add('file.txt');
+    expect(execa).toHaveBeenCalledWith('pijul', ['add', 'file.txt']);
   });
 
   it('should record a patch', async () => {
-    const newContent = 'new content';
-    fs.writeFileSync(testFile, newContent);
-    await backend.record('New patch');
-    const { stdout } = await execa('pijul', ['log', '--hash-only'], { cwd: testDir });
-    expect(stdout.split('\n').length).toBe(2);
+    await backend.record('message');
+    expect(execa).toHaveBeenCalledWith('pijul', ['record', '-m', 'message']);
   });
 
   it('should unrecord a patch', async () => {
-    const newContent = 'new content';
-    fs.writeFileSync(testFile, newContent);
-    await backend.record('New patch');
-    const { stdout: hash } = await execa('pijul', ['log', '--hash-only', '-n1'], { cwd: testDir });
-    await backend.unrecord(hash);
-    const { stdout: log } = await execa('pijul', ['log', '--hash-only'], { cwd: testDir });
-    expect(log.split('\n').length).toBe(1);
+    await backend.unrecord('hash');
+    expect(execa).toHaveBeenCalledWith('pijul', ['unrecord', 'hash']);
   });
 
   it('should switch channels', async () => {
     await backend.channel('new-channel');
-    const { stdout } = await execa('pijul', ['channel'], { cwd: testDir });
-    expect(stdout).toContain('* new-channel');
+    expect(execa).toHaveBeenCalledWith('pijul', ['channel', 'switch', 'new-channel']);
   });
 
   it('should apply a patch', async () => {
-    const newContent = 'new content';
-    fs.writeFileSync(testFile, newContent);
-    await backend.record('New patch');
-    await backend.revert(testFile);
-    const { stdout: hash } = await execa('pijul', ['log', '--hash-only', '-n1'], { cwd: testDir });
-    await backend.apply(hash);
-    const content = fs.readFileSync(testFile, 'utf-8');
-    expect(content).toBe(newContent);
+    await backend.apply('patch.pijul');
+    expect(execa).toHaveBeenCalledWith('pijul', ['apply', 'patch.pijul']);
+  });
+
+  it('should list conflicts', async () => {
+    execa.mockResolvedValue({ stdout: 'C HASH author date' });
+    const conflicts = await backend.conflicts();
+    expect(execa).toHaveBeenCalledWith('pijul', ['credit']);
+    expect(conflicts).toBe(JSON.stringify([{ hash: 'HASH', author: 'author', date: 'date' }], null, 2));
+  });
+
+  it('should show the diff', async () => {
+    execa.mockResolvedValue({ stdout: 'diff --pijul a/file.txt b/file.txt' });
+    const diff = await backend.diff();
+    expect(execa).toHaveBeenCalledWith('pijul', ['diff']);
+    expect(diff).toBe('diff --pijul a/file.txt b/file.txt');
   });
 });

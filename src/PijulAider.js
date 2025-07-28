@@ -33,8 +33,6 @@ class PijulAider {
     }
 
     try {
-      // How to detect a pijul repo?
-      // For now, we'll just check for a .pijul directory
       const fs = require('fs');
       if (fs.existsSync('.pijul')) {
         return 'pijul';
@@ -62,9 +60,16 @@ class PijulAider {
       } catch (error) {
         console.error('Error migrating from Git to Pijul:', error);
       }
+    } else if (from === 'file' && to === 'pijul') {
+      try {
+        console.log('Initializing Pijul repository...');
+        await execa('pijul', ['init']);
+        console.log('Pijul repository initialized.');
+      } catch (error) {
+        console.error('Error initializing Pijul repository:', error);
+      }
     } else {
-      // TODO: Implement migration
-      console.log(`Migrating from ${from} to ${to}...`);
+      console.log(`Migration from ${from} to ${to} is not supported.`);
     }
   }
 
@@ -156,7 +161,40 @@ class PijulAider {
           return;
         }
         const conflicts = await this.backend.conflicts();
-        this.messages.push({ sender: 'system', text: conflicts });
+        try {
+          const parsedConflicts = JSON.parse(conflicts);
+          if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
+            let conflictMessage = 'Conflicts:\n';
+            for (const conflict of parsedConflicts) {
+              if (typeof conflict === 'string') {
+                conflictMessage += `- ${conflict}\n`;
+              } else if (typeof conflict === 'object' && conflict.hash) {
+                conflictMessage += `- ${conflict.hash}\n`;
+              }
+            }
+            this.messages.push({ sender: 'system', text: conflictMessage });
+          } else {
+            this.messages.push({ sender: 'system', text: 'No conflicts found.' });
+          }
+        } catch (error) {
+          this.messages.push({ sender: 'system', text: conflicts });
+        }
+        return;
+      } else if (query === '/help') {
+        this.messages.push({
+          sender: 'system',
+          text: `
+Available commands:
+/diff - Show the current diff
+/edit <file> - Edit a file
+/record <message> - Record a change
+/unrecord <hash> - Unrecord a change
+/channel <name> - Switch to a channel (Pijul) or create a branch (Git)
+/apply <patch> - Apply a patch
+/conflicts - List conflicts
+/help - Show this help message
+          `,
+        });
         return;
       }
 
