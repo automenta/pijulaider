@@ -111,6 +111,26 @@ class PijulAider {
           console.log('Please specify a file to edit.');
         }
         return;
+      } else if (query.startsWith('/record')) {
+        const message = query.split(' ').slice(1).join(' ');
+        await this.backend.record(message);
+        return;
+      } else if (query.startsWith('/unrecord')) {
+        const hash = query.split(' ')[1];
+        await this.backend.unrecord(hash);
+        return;
+      } else if (query.startsWith('/channel')) {
+        const name = query.split(' ')[1];
+        await this.backend.channel(name);
+        return;
+      } else if (query.startsWith('/apply')) {
+        const patch = query.split(' ')[1];
+        await this.backend.apply(patch);
+        return;
+      } else if (query.startsWith('/conflicts')) {
+        const conflicts = await this.backend.conflicts();
+        this.messages.push({ sender: 'system', text: conflicts });
+        return;
       }
 
       this.messages.push({ sender: 'user', text: query });
@@ -120,7 +140,19 @@ class PijulAider {
       });
       this.messages.push({ sender: 'ai', text: response });
 
-      // TODO: Extract the diff from the response and apply it
+      const { parseDiff, applyDiff } = require('./diffUtils');
+      const parsedDiff = parseDiff(response);
+      if (parsedDiff) {
+        try {
+          await applyDiff(parsedDiff);
+          diff = await this.backend.diff();
+        } catch (error) {
+          this.messages.push({
+            sender: 'system',
+            text: 'Error applying diff. Please check the diff and try again.',
+          });
+        }
+      }
     };
 
     const App = () => (

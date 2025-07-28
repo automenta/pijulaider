@@ -63,7 +63,18 @@ class PijulBackend extends VersioningBackend {
   async conflicts() {
     try {
       const { stdout } = await execa('pijul', ['credit']);
-      return stdout;
+      const conflicts = stdout
+        .split('\n')
+        .filter((line) => line.startsWith('C'))
+        .map((line) => {
+          const parts = line.split(' ');
+          return {
+            hash: parts[1],
+            author: parts[2],
+            date: parts[3],
+          };
+        });
+      return JSON.stringify(conflicts, null, 2);
     } catch (error) {
       console.error(error);
       return '';

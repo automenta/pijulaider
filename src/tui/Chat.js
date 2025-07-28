@@ -3,6 +3,7 @@ const { Box, Text, Newline } = require('ink');
 const TextInput = require('ink-text-input').default;
 const Mic = require('node-microphone');
 const FilePicker = require('file-picker');
+const DiffView = require('./DiffView');
 
 const Chat = ({ messages, onSendMessage, diff }) => {
   const [query, setQuery] = React.useState('');
@@ -55,7 +56,7 @@ const Chat = ({ messages, onSendMessage, diff }) => {
       {diff && (
         <Box flexDirection="column" borderStyle="round" borderColor="gray">
           <Text>Changes:</Text>
-          <Text>{diff}</Text>
+          <DiffView diff={diff} />
         </Box>
       )}
       <Newline />

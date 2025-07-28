@@ -10,7 +10,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "mocha tests/**/*.test.js"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -31,6 +31,7 @@
     "apply-diff": "^1.2.5",
     "babel-jest": "^30.0.5",
     "commander": "^14.0.0",
+    "diff": "^8.0.2",
     "edit-file": "^0.3.0",
     "execa": "^5.1.1",
     "file-picker": "^0.1.8",

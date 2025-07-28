@@ -21,7 +21,26 @@ class FileBackend extends VersioningBackend {
     }
   }
 
+  unstage(file) {
+    try {
+      const backupFile = this.files.get(file);
+      if (backupFile) {
+        fs.unlinkSync(backupFile);
+        this.files.delete(file);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   commit(message) {
+    for (const backupFile of this.files.values()) {
+      try {
+        fs.unlinkSync(backupFile);
+      } catch (error) {
+        console.error(error);
+      }
+    }
     this.files.clear();
   }
 
@@ -51,6 +70,17 @@ class FileBackend extends VersioningBackend {
       }
     }
     return diff;
+  }
+
+  clear() {
+    for (const backupFile of this.files.values()) {
+      try {
+        fs.unlinkSync(backupFile);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this.files.clear();
   }
 }
 

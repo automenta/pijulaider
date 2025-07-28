@@ -46,4 +46,20 @@ describe('FileBackend', () => {
     expect(diff).toContain('-hello world');
     expect(diff).toContain('+goodbye world');
   });
+
+  it('should unstage a file', () => {
+    const backend = new FileBackend();
+    backend.add(testFile);
+    backend.unstage(testFile);
+    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
+    expect(backupFile).toBeUndefined();
+  });
+
+  it('should clear all files', () => {
+    const backend = new FileBackend();
+    backend.add(testFile);
+    backend.clear();
+    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
+    expect(backupFile).toBeUndefined();
+  });
 });
