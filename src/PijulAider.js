@@ -48,9 +48,20 @@ class PijulAider {
 
   async migrate(from, to) {
     if (from === 'git' && to === 'pijul') {
-      console.log('To migrate from Git to Pijul, please run the following commands:');
-      console.log('1. Install pijul-git: `cargo install pijul-git`');
-      console.log('2. Run `pijul-git import` in your Git repository.');
+      try {
+        await execa('pijul-git', ['--version']);
+      } catch (error) {
+        console.log('pijul-git is not installed. Please install it by running `cargo install pijul-git`.');
+        return;
+      }
+
+      try {
+        console.log('Importing Git repository to Pijul...');
+        await execa('pijul-git', ['import']);
+        console.log('Migration successful.');
+      } catch (error) {
+        console.error('Error migrating from Git to Pijul:', error);
+      }
     } else {
       // TODO: Implement migration
       console.log(`Migrating from ${from} to ${to}...`);
@@ -116,18 +127,34 @@ class PijulAider {
         await this.backend.record(message);
         return;
       } else if (query.startsWith('/unrecord')) {
+        if (typeof this.backend.unrecord !== 'function') {
+          this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
+          return;
+        }
         const hash = query.split(' ')[1];
         await this.backend.unrecord(hash);
         return;
       } else if (query.startsWith('/channel')) {
+        if (typeof this.backend.channel !== 'function') {
+          this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
+          return;
+        }
         const name = query.split(' ')[1];
         await this.backend.channel(name);
         return;
       } else if (query.startsWith('/apply')) {
+        if (typeof this.backend.apply !== 'function') {
+          this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
+          return;
+        }
         const patch = query.split(' ')[1];
         await this.backend.apply(patch);
         return;
       } else if (query.startsWith('/conflicts')) {
+        if (typeof this.backend.conflicts !== 'function') {
+          this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
+          return;
+        }
         const conflicts = await this.backend.conflicts();
         this.messages.push({ sender: 'system', text: conflicts });
         return;

@@ -3,11 +3,11 @@ class VersioningBackend {
     throw new Error('Not implemented');
   }
 
-  commit(message) {
+  record(message) {
     throw new Error('Not implemented');
   }
 
-  revert(file) {
+  unrecord(hash) {
     throw new Error('Not implemented');
   }
 
@@ -15,7 +15,19 @@ class VersioningBackend {
     throw new Error('Not implemented');
   }
 
-  record(message) {
+  channel(name) {
+    throw new Error('Not implemented');
+  }
+
+  apply(patch) {
+    throw new Error('Not implemented');
+  }
+
+  conflicts() {
+    throw new Error('Not implemented');
+  }
+
+  revert(file) {
     throw new Error('Not implemented');
   }
 }

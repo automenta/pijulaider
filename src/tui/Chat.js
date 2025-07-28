@@ -22,6 +22,7 @@ const Chat = ({ messages, onSendMessage, diff }) => {
       mic.start();
       mic.on('data', (data) => {
         // TODO: Send audio data to speech-to-text service
+        // For now, we'll just log it to the console
         console.log('Received audio data:', data);
       });
     }
@@ -36,14 +37,16 @@ const Chat = ({ messages, onSendMessage, diff }) => {
       },
       (file) => {
         // TODO: Handle the selected image
+        // For now, we'll just log the file path
         console.log('Selected image:', file.path);
+        this.messages.push({ sender: 'user', text: `Selected image: ${file.path}` });
       }
     );
   };
 
   return (
-    <Box flexDirection="column">
-      <Box flexDirection="column" flexGrow={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1}>
+      <Box flexDirection="column" flexGrow={1} marginBottom={1}>
         {messages.map((message, i) => (
           <Box key={i}>
             <Text color={message.sender === 'user' ? 'green' : 'blue'}>
@@ -54,13 +57,12 @@ const Chat = ({ messages, onSendMessage, diff }) => {
         ))}
       </Box>
       {diff && (
-        <Box flexDirection="column" borderStyle="round" borderColor="gray">
+        <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} marginBottom={1}>
           <Text>Changes:</Text>
           <DiffView diff={diff} />
         </Box>
       )}
-      <Newline />
-      <Box>
+      <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <Text>You: </Text>
         <TextInput value={query} onChange={setQuery} onSubmit={handleSubmit} />
         <Box marginLeft={1} onClick={handleMicClick}>

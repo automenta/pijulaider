@@ -48,6 +48,23 @@ class FileBackend extends VersioningBackend {
     return this.commit(message);
   }
 
+  unrecord(hash) {
+    console.log('Unrecord is not supported by the File backend.');
+  }
+
+  channel(name) {
+    console.log('Channels are not supported by the File backend.');
+  }
+
+  apply(patch) {
+    console.log('Apply is not supported by the File backend.');
+  }
+
+  conflicts() {
+    console.log('Conflicts are not supported by the File backend.');
+    return '';
+  }
+
   revert(file) {
     try {
       const backupFile = this.files.get(file);
