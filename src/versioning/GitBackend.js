@@ -37,14 +37,20 @@ class GitBackend extends VersioningBackend {
 
   async channel(name) {
     try {
-      await this.execa('git', ['checkout', '-b', name]);
+      await this.execa('git', ['checkout', name]);
     } catch (error) {
-      console.error(`Error creating branch ${name} in Git:`, error);
+      // If the branch doesn't exist, create it
+      if (error.stderr.includes('did not match any file(s) known to git')) {
+        await this.execa('git', ['checkout', '-b', name]);
+      } else {
+        console.error(`Error switching to branch ${name} in Git:`, error);
+      }
     }
   }
 
   async apply(patch) {
     try {
+      await this.execa('git', ['apply', '--check', patch]);
       await this.execa('git', ['apply', patch]);
     } catch (error) {
       console.error(`Error applying patch in Git:`, error);

@@ -18,25 +18,36 @@ const Chat = ({ messages, onSendMessage, diff }) => {
   const handleMicClick = () => {
     if (isRecording) {
       mic.stop();
+      setIsRecording(false);
     } else {
       mic.start();
+      setIsRecording(true);
       mic.on('data', (data) => {
-        // TODO: Send audio data to speech-to-text service
-        // For now, we'll just log it to the console
-        console.log('Received audio data:', data);
+        // Mock speech-to-text service
+        const transcribedText = 'This is a mock transcription.';
+        setQuery(transcribedText);
+        mic.stop();
+        setIsRecording(false);
       });
     }
-    setIsRecording(!isRecording);
   };
 
   const handleImageClick = () => {
     onSendMessage('/image');
   };
 
-  const items = messages.map((message, i) => ({
-    label: `${message.sender}: ${message.text}`,
-    value: i,
-  }));
+  const items = messages.map((message, i) => {
+    if (message.image) {
+      return {
+        label: `${message.sender}: [Image: ${message.image}]`,
+        value: i,
+      };
+    }
+    return {
+      label: `${message.sender}: ${message.text}`,
+      value: i,
+    };
+  });
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1}>

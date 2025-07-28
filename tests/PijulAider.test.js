@@ -94,4 +94,58 @@ describe('PijulAider', () => {
       text: 'All tests passed!',
     });
   });
+
+  it('should handle test failures', async () => {
+    const error = new Error('Tests failed');
+    error.stdout = 'Error: test failed';
+    aider.execa.mockRejectedValue(error);
+    jest.spyOn(aider.chain, 'invoke').mockResolvedValue('fixed the tests');
+    const { parseDiff, applyDiff } = require('../src/diffUtils');
+    parseDiff.mockReturnValue({/* a parsed diff object */});
+    applyDiff.mockResolvedValue(undefined);
+
+    const inquirer = require('inquirer');
+    inquirer.prompt = jest.fn().mockResolvedValue({ switchToPijul: false });
+
+    await aider.run([], jest.fn().mockResolvedValue([]));
+    const onSendMessage = aider.getOnSendMessage();
+    await onSendMessage('/test');
+
+    expect(aider.messages).toContainEqual({
+      sender: 'system',
+      text: `Tests failed. Attempting to fix...\n${error.stdout}`,
+    });
+    expect(aider.chain.invoke).toHaveBeenCalledWith({
+      input: `The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`,
+      chat_history: expect.any(Array),
+      codebase: expect.any(String),
+    });
+    expect(aider.messages).toContainEqual({
+      sender: 'ai',
+      text: 'fixed the tests',
+    });
+  });
+
+  it('should detect the pijul backend', async () => {
+    aider.execa.mockResolvedValue(undefined);
+    const backend = await aider.detectBackend();
+    expect(backend).toBe('pijul');
+  });
+
+  it('should detect the git backend', async () => {
+    aider.execa.mockImplementation((command) => {
+      if (command === 'pijul') {
+        return Promise.reject();
+      }
+      return Promise.resolve();
+    });
+    const backend = await aider.detectBackend();
+    expect(backend).toBe('git');
+  });
+
+  it('should fall back to the file backend', async () => {
+    aider.execa.mockRejectedValue(new Error());
+    const backend = await aider.detectBackend();
+    expect(backend).toBe('file');
+  });
 });

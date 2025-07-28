@@ -28,16 +28,35 @@ describe('GitBackend', () => {
     expect(execa).toHaveBeenCalledWith('git', ['revert', '--no-edit', hash]);
   });
 
-  it('should create a branch', async () => {
+  it('should switch to an existing branch', async () => {
     const name = 'test-branch';
+    await backend.channel(name);
+    expect(execa).toHaveBeenCalledWith('git', ['checkout', name]);
+  });
+
+  it('should create a new branch if it does not exist', async () => {
+    const name = 'test-branch';
+    execa.mockImplementation((command, args) => {
+      if (args[1] === name) {
+        return Promise.reject({ stderr: 'did not match any file(s) known to git' });
+      }
+      return Promise.resolve();
+    });
     await backend.channel(name);
     expect(execa).toHaveBeenCalledWith('git', ['checkout', '-b', name]);
   });
 
-  it('should apply a patch', async () => {
+  it('should apply a patch safely', async () => {
     const patch = 'test.patch';
     await backend.apply(patch);
+    expect(execa).toHaveBeenCalledWith('git', ['apply', '--check', patch]);
     expect(execa).toHaveBeenCalledWith('git', ['apply', patch]);
+  });
+
+  it('should get conflicts', async () => {
+    execa.mockResolvedValue({ stdout: 'UU file1.txt\n' });
+    const conflicts = await backend.conflicts();
+    expect(JSON.parse(conflicts)).toEqual([]);
   });
 
   it('should get a diff', async () => {

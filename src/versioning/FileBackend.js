@@ -34,36 +34,24 @@ class FileBackend extends VersioningBackend {
     }
   }
 
-  async commit(message) {
-    for (const backupFile of this.files.values()) {
-      try {
-        await fs.unlink(backupFile);
-      } catch (error) {
-        console.error(`Error committing changes:`, error);
-      }
-    }
-    this.files.clear();
-  }
-
   async record(message) {
-    return this.commit(message);
+    // No-op for file backend
   }
 
   unrecord(hash) {
-    console.log('Unrecord is not supported by the File backend.');
+    throw new Error('Unrecord is not supported by the File backend.');
   }
 
   channel(name) {
-    console.log('Channels are not supported by the File backend.');
+    throw new Error('Channels are not supported by the File backend.');
   }
 
   apply(patch) {
-    console.log('Apply is not supported by the File backend.');
+    throw new Error('Apply is not supported by the File backend.');
   }
 
   conflicts() {
-    console.log('Conflicts are not supported by the File backend.');
-    return '';
+    throw new Error('Conflicts are not supported by the File backend.');
   }
 
   async revert(file) {

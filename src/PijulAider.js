@@ -160,49 +160,68 @@ Here is the user's query:
             await this.backend.record(args.join(' '));
             break;
           case 'unrecord':
-            if (typeof this.backend.unrecord === 'function') {
-              await this.backend.unrecord(args[0]);
-            } else {
-              this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
+            try {
+              if (typeof this.backend.unrecord === 'function') {
+                await this.backend.unrecord(args[0]);
+                this.messages.push({ sender: 'system', text: `Unrecorded change ${args[0]}` });
+              } else {
+                this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
+              }
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error unrecording change: ${error.message}` });
             }
             break;
           case 'channel':
-            if (typeof this.backend.channel === 'function') {
-              await this.backend.channel(args[0]);
-            } else {
-              this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
+            try {
+              if (typeof this.backend.channel === 'function') {
+                await this.backend.channel(args[0]);
+                this.messages.push({ sender: 'system', text: `Switched to channel ${args[0]}` });
+              } else {
+                this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
+              }
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error switching to channel: ${error.message}` });
             }
             break;
           case 'apply':
-            if (typeof this.backend.apply === 'function') {
-              await this.backend.apply(args[0]);
-            } else {
-              this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
+            try {
+              if (typeof this.backend.apply === 'function') {
+                await this.backend.apply(args[0]);
+                this.messages.push({ sender: 'system', text: `Applied patch ${args[0]}` });
+              } else {
+                this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
+              }
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error applying patch: ${error.message}` });
             }
             break;
           case 'conflicts':
-            if (typeof this.backend.conflicts === 'function') {
-              const conflicts = await this.backend.conflicts();
-              try {
-                const parsedConflicts = JSON.parse(conflicts);
-                if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
-                  let conflictMessage = 'Conflicts:\n';
-                  for (const conflict of parsedConflicts) {
-                    if (typeof conflict === 'string') {
-                      conflictMessage += `- ${conflict}\n`;
-                    } else if (typeof conflict === 'object' && conflict.hash) {
-                      conflictMessage += `- ${conflict.hash}\n`;
+            try {
+              if (typeof this.backend.conflicts === 'function') {
+                const conflicts = await this.backend.conflicts();
+                try {
+                  const parsedConflicts = JSON.parse(conflicts);
+                  if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
+                    let conflictMessage = 'Conflicts:\n';
+                    for (const conflict of parsedConflicts) {
+                      if (typeof conflict === 'string') {
+                        conflictMessage += `- ${conflict}\n`;
+                      } else if (typeof conflict === 'object' && conflict.hash) {
+                        conflictMessage += `- ${conflict.hash}\n`;
+                      }
                     }
+                    this.messages.push({ sender: 'system', text: conflictMessage });
+                  } else {
+                    this.messages.push({ sender: 'system', text: 'No conflicts found.' });
                   }
-                  this.messages.push({ sender: 'system', text: conflictMessage });
-                } else {
-                  this.messages.push({ sender: 'system', text: 'No conflicts found.' });
+                } catch (error) {
+                  this.messages.push({ sender: 'system', text: conflicts });
                 }
-              } catch (error) {
-                this.messages.push({ sender: 'system', text: conflicts });
+              } else {
+                this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
               }
-            } else {
-              this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error getting conflicts: ${error.message}` });
             }
             break;
           case 'test':
@@ -238,10 +257,16 @@ Here is the user's query:
             }
             break;
           case 'image':
-            this.messages.push({
-              sender: 'system',
-              text: 'Please provide the path to the image:',
-            });
+            const { imagePath } = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'imagePath',
+                message: 'Enter the path to the image:',
+              },
+            ]);
+            if (imagePath) {
+              this.messages.push({ sender: 'user', image: imagePath });
+            }
             break;
           case 'help':
             this.messages.push({

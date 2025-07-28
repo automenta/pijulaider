@@ -49,4 +49,20 @@ describe('FileBackend', () => {
     await fs.unlink(file);
     await fs.unlink(backupFile);
   });
+
+  it('should throw an error when unrecording', () => {
+    expect(() => backend.unrecord('123')).toThrow('Unrecord is not supported by the File backend.');
+  });
+
+  it('should throw an error when switching channels', () => {
+    expect(() => backend.channel('test')).toThrow('Channels are not supported by the File backend.');
+  });
+
+  it('should throw an error when applying a patch', () => {
+    expect(() => backend.apply('test.patch')).toThrow('Apply is not supported by the File backend.');
+  });
+
+  it('should throw an error when getting conflicts', () => {
+    expect(() => backend.conflicts()).toThrow('Conflicts are not supported by the File backend.');
+  });
 });
