@@ -1,4 +1,6 @@
 const { ChatOpenAI } = require('@langchain/openai');
+const { ChatAnthropic } = require('@langchain/anthropic');
+const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
 const { ChatPromptTemplate } = require('@langchain/core/prompts');
 const { StringOutputParser } = require('@langchain/core/output_parsers');
 const FileBackend = require('./versioning/FileBackend');
@@ -19,7 +21,7 @@ const { execa: defaultExeca } = require('execa');
 class PijulAider {
   constructor(options, execa = defaultExeca) {
     this.options = options;
-    this.llm = new ChatOpenAI({ modelName: options.model });
+    this.llm = this.createLlm(options.provider, options.model);
     this.execa = execa;
     this.prompt = ChatPromptTemplate.fromTemplate(
       `You are a helpful AI assistant that helps with coding.
@@ -42,6 +44,19 @@ Here is the user's query:
     this.messages = [];
     this.diff = '';
     this.codebase = '';
+  }
+
+  createLlm(provider, model) {
+    switch (provider) {
+      case 'openai':
+        return new ChatOpenAI({ modelName: model });
+      case 'anthropic':
+        return new ChatAnthropic({ modelName: model });
+      case 'google':
+        return new ChatGoogleGenerativeAI({ modelName: model });
+      default:
+        throw new Error(`Unknown LLM provider: ${provider}`);
+    }
   }
 
   async detectBackend() {
@@ -113,8 +128,7 @@ Here is the user's query:
     }
   }
 
-  async run(files, globFn) {
-    const { glob } = globFn ? { glob: globFn } : require('glob');
+  async initialize() {
     const currentBackend = await this.detectBackend();
     try {
       if (currentBackend !== 'pijul' && !this.options.backend) {
@@ -130,6 +144,7 @@ Here is the user's query:
         if (switchToPijul) {
           await this.migrate(currentBackend, 'pijul');
           this.backend = await this.createBackend('pijul');
+          this.messages.push({ sender: 'system', text: 'Successfully migrated to Pijul.' });
         } else {
           this.backend = await this.createBackend(currentBackend);
         }
@@ -137,214 +152,173 @@ Here is the user's query:
         this.backend = await this.createBackend(this.options.backend || currentBackend);
       }
     } catch (error) {
-      console.error(error.message);
-      return;
+      this.messages.push({ sender: 'system', text: `Error initializing backend: ${error.message}` });
+      throw error;
     }
+  }
 
+  async loadFiles(files, globFn) {
+    const { glob } = globFn ? { glob: globFn } : require('glob');
     const allFiles = files.length > 0 ? files : await glob('**/*', { nodir: true });
     for (const file of allFiles) {
-      this.backend.add(file);
       try {
+        await this.backend.add(file);
         const content = await fs.readFile(file, 'utf-8');
         this.codebase += `--- ${file} ---\n${content}\n\n`;
       } catch (error) {
-        // Ignore files that can't be read
+        this.messages.push({ sender: 'system', text: `Error loading file ${file}: ${error.message}` });
       }
     }
-
     this.diff = await this.backend.diff();
+  }
 
-    this.onSendMessage = async (query) => {
-      this.messages.push({ sender: 'user', text: query });
-
-      if (query.startsWith('/')) {
-        const [command, ...args] = query.slice(1).split(' ');
-        switch (command) {
-          case 'add':
-            for (const file of args) {
-              this.backend.add(file);
-              try {
-                const content = await fs.readFile(file, 'utf-8');
-                this.codebase += `--- ${file} ---\n${content}\n\n`;
-                this.messages.push({ sender: 'system', text: `Added ${file} to the chat.` });
-              } catch (error) {
-                this.messages.push({ sender: 'system', text: `Error adding file ${file}: ${error.message}` });
-              }
-            }
-            break;
-          case 'drop':
-            for (const file of args) {
-              const fileRegex = new RegExp(`--- ${file} ---\\n[\\s\\S]*?\\n\\n`);
-              if (this.codebase.match(fileRegex)) {
-                this.codebase = this.codebase.replace(fileRegex, '');
-                this.messages.push({ sender: 'system', text: `Removed ${file} from the chat.` });
-              } else {
-                this.messages.push({ sender: 'system', text: `File ${file} not found in the chat.` });
-              }
-            }
-            break;
-          case 'diff':
-            this.diff = await this.backend.diff();
-            break;
-          case 'edit':
-            if (args.length > 0) {
-              await editFile(args[0]);
-              this.diff = await this.backend.diff();
+  async handleCommand(command, args) {
+    try {
+      switch (command) {
+        case 'add':
+          for (const file of args) {
+            await this.backend.add(file);
+            const content = await fs.readFile(file, 'utf-8');
+            this.codebase += `--- ${file} ---\n${content}\n\n`;
+            this.messages.push({ sender: 'system', text: `Added ${file} to the chat.` });
+          }
+          break;
+        case 'drop':
+          for (const file of args) {
+            const fileRegex = new RegExp(`--- ${file} ---\\n[\\s\\S]*?\\n\\n`);
+            if (this.codebase.match(fileRegex)) {
+              this.codebase = this.codebase.replace(fileRegex, '');
+              this.messages.push({ sender: 'system', text: `Removed ${file} from the chat.` });
             } else {
-              this.messages.push({ sender: 'system', text: 'Please specify a file to edit.' });
+              this.messages.push({ sender: 'system', text: `File ${file} not found in the chat.` });
             }
-            break;
-          case 'record':
-            await this.backend.record(args.join(' '));
-            break;
-          case 'unrecord':
-            try {
-              if (typeof this.backend.unrecord === 'function') {
-                await this.backend.unrecord(args[0]);
-                this.messages.push({ sender: 'system', text: `Unrecorded change ${args[0]}` });
-              } else {
-                this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
-              }
-            } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error unrecording change: ${error.message}` });
+          }
+          break;
+        case 'diff':
+          this.diff = await this.backend.diff();
+          this.messages.push({ sender: 'system', text: 'Diff updated.' });
+          break;
+        case 'edit':
+          if (args.length > 0) {
+            await editFile(args[0]);
+            this.diff = await this.backend.diff();
+            this.messages.push({ sender: 'system', text: `Finished editing ${args[0]}.` });
+          } else {
+            this.messages.push({ sender: 'system', text: 'Please specify a file to edit.' });
+          }
+          break;
+        case 'record':
+          await this.backend.record(args.join(' '));
+          this.messages.push({ sender: 'system', text: 'Changes recorded.' });
+          break;
+        case 'unrecord':
+          if (typeof this.backend.unrecord === 'function') {
+            await this.backend.unrecord(args[0]);
+            this.messages.push({ sender: 'system', text: `Unrecorded change ${args[0]}` });
+          } else {
+            this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
+          }
+          break;
+        case 'undo':
+          await this.backend.undo();
+          this.diff = await this.backend.diff();
+          this.messages.push({ sender: 'system', text: 'Undid the last change.' });
+          break;
+        case 'channel':
+          if (typeof this.backend.channel === 'function') {
+            const subcommand = args[0];
+            const name = args[1];
+            if (subcommand === 'new') {
+              await this.backend.channel(subcommand, name);
+              this.messages.push({ sender: 'system', text: `Created channel ${name}` });
+            } else if (subcommand === 'switch') {
+              await this.backend.channel(subcommand, name);
+              this.messages.push({ sender: 'system', text: `Switched to channel ${name}` });
+            } else if (subcommand === 'list') {
+              const channels = await this.backend.channel(subcommand);
+              this.messages.push({ sender: 'system', text: `Channels:\n${channels}` });
+            } else {
+              this.messages.push({ sender: 'system', text: 'Usage: /channel [new|switch|list] [name]' });
             }
-            break;
-          case 'undo':
-            try {
-              await this.backend.undo();
-              this.diff = await this.backend.diff();
-              this.messages.push({ sender: 'system', text: 'Undid the last change.' });
-            } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error undoing change: ${error.message}` });
+          } else {
+            this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
+          }
+          break;
+        case 'patch':
+          if (typeof this.backend.patch === 'function') {
+            const subcommand = args[0];
+            const name = args[1];
+            if (subcommand === 'list') {
+              const patches = await this.backend.patch(subcommand);
+              this.messages.push({ sender: 'system', text: `Patches:\n${patches}` });
+            } else if (subcommand === 'apply') {
+              await this.backend.apply(name);
+              this.messages.push({ sender: 'system', text: `Applied patch ${name}` });
+            } else {
+              this.messages.push({ sender: 'system', text: 'Usage: /patch [list|apply] [hash]' });
             }
-            break;
-          case 'channel':
+          } else {
+            this.messages.push({ sender: 'system', text: 'This backend does not support patches.' });
+          }
+          break;
+        case 'conflicts':
+          if (typeof this.backend.conflicts === 'function') {
+            const conflicts = await this.backend.conflicts();
             try {
-              if (typeof this.backend.channel === 'function') {
-                const subcommand = args[0];
-                const name = args[1];
-                if (subcommand === 'new') {
-                  await this.backend.channel(subcommand, name);
-                  this.messages.push({ sender: 'system', text: `Created channel ${name}` });
-                } else if (subcommand === 'switch') {
-                  await this.backend.channel(subcommand, name);
-                  this.messages.push({ sender: 'system', text: `Switched to channel ${name}` });
-                } else if (subcommand === 'list') {
-                  const channels = await this.backend.channel(subcommand);
-                  this.messages.push({ sender: 'system', text: `Channels:\n${channels}` });
-                } else {
-                  this.messages.push({ sender: 'system', text: 'Usage: /channel [new|switch|list] [name]' });
-                }
-              } else {
-                this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
-              }
-            } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error with channel command: ${error.message}` });
-            }
-            break;
-          case 'patch':
-            try {
-              if (typeof this.backend.patch === 'function') {
-                const subcommand = args[0];
-                const name = args[1];
-                if (subcommand === 'list') {
-                  const patches = await this.backend.patch(subcommand);
-                  this.messages.push({ sender: 'system', text: `Patches:\n${patches}` });
-                } else if (subcommand === 'apply') {
-                  await this.backend.apply(name);
-                  this.messages.push({ sender: 'system', text: `Applied patch ${name}` });
-                } else {
-                  this.messages.push({ sender: 'system', text: 'Usage: /patch [list|apply] [hash]' });
-                }
-              } else {
-                this.messages.push({ sender: 'system', text: 'This backend does not support patches.' });
-              }
-            } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error with patch command: ${error.message}` });
-            }
-            break;
-          case 'conflicts':
-            try {
-              if (typeof this.backend.conflicts === 'function') {
-                const conflicts = await this.backend.conflicts();
-                try {
-                  const parsedConflicts = JSON.parse(conflicts);
-                  if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
-                    let conflictMessage = 'Conflicts:\n';
-                    for (const conflict of parsedConflicts) {
-                      if (typeof conflict === 'string') {
-                        conflictMessage += `- ${conflict}\n`;
-                      } else if (typeof conflict === 'object' && conflict.hash) {
-                        conflictMessage += `- ${conflict.hash}\n`;
-                      }
-                    }
-                    this.messages.push({ sender: 'system', text: conflictMessage });
-                  } else {
-                    this.messages.push({ sender: 'system', text: 'No conflicts found.' });
+              const parsedConflicts = JSON.parse(conflicts);
+              if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
+                let conflictMessage = 'Conflicts:\n';
+                for (const conflict of parsedConflicts) {
+                  if (typeof conflict === 'string') {
+                    conflictMessage += `- ${conflict}\n`;
+                  } else if (typeof conflict === 'object' && conflict.hash) {
+                    conflictMessage += `- ${conflict.hash}\n`;
                   }
-                } catch (error) {
-                  this.messages.push({ sender: 'system', text: conflicts });
                 }
+                this.messages.push({ sender: 'system', text: conflictMessage });
               } else {
-                this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
+                this.messages.push({ sender: 'system', text: 'No conflicts found.' });
               }
             } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error getting conflicts: ${error.message}` });
+              this.messages.push({ sender: 'system', text: conflicts });
             }
-            break;
-          case 'run':
-            try {
-              const { stdout } = await this.execa(args[0], args.slice(1));
-              this.messages.push({ sender: 'system', text: `\`${query}\`\n${stdout}` });
-            } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error running command: ${error.message}` });
-            }
-            break;
-          case 'test':
-            try {
-              await this.execa('npm', ['test']);
-              this.messages.push({ sender: 'system', text: 'All tests passed!' });
-            } catch (error) {
-              this.messages.push({
-                sender: 'system',
-                text: `Tests failed. Attempting to fix...\n${error.stdout}`,
-              });
-              const response = await this.chain.invoke({
-                input: `The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`,
-                chat_history: this.messages,
-                codebase: this.codebase,
-              });
-              this.messages.push({ sender: 'ai', text: response });
-              const parsedDiff = parseDiff(response);
-              if (parsedDiff) {
-                try {
-                  await applyDiff(parsedDiff);
-                  this.diff = await this.backend.diff();
-                  if (this.options.autoCommit) {
-                    await this.backend.record('Auto-commit');
-                  }
-                } catch (error) {
-                  this.messages.push({
-                    sender: 'system',
-                    text: 'Error applying diff. Please check the diff and try again.',
-                  });
-                }
-              }
-            }
-            break;
-          case 'image':
-            const [imagePath] = await filePicker({
-              type: 'image',
-              multiple: false,
-            });
-            if (imagePath) {
-              this.messages.push({ sender: 'user', image: imagePath });
-            }
-            break;
-          case 'help':
+          } else {
+            this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
+          }
+          break;
+        case 'run':
+          const { stdout } = await this.execa(args[0], args.slice(1));
+          this.messages.push({ sender: 'system', text: `\`/${command} ${args.join(' ')}\`\n${stdout}` });
+          break;
+        case 'test':
+          try {
+            await this.execa('npm', ['test']);
+            this.messages.push({ sender: 'system', text: 'All tests passed!' });
+          } catch (error) {
             this.messages.push({
               sender: 'system',
-              text: `
+              text: `Tests failed. Attempting to fix...\n${error.stdout}`,
+            });
+            await this.handleQuery(`The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`);
+          }
+          break;
+        case 'speech':
+          this.messages.push({ sender: 'system', text: 'Recording...' });
+          await this.handleSpeech();
+          break;
+        case 'image':
+          const [imagePath] = await filePicker({
+            type: 'image',
+            multiple: false,
+          });
+          if (imagePath) {
+            this.messages.push({ sender: 'user', image: imagePath });
+          }
+          break;
+        case 'help':
+          this.messages.push({
+            sender: 'system',
+            text: `
 Available commands:
 /add <file>... - Add files to the chat
 /drop <file>... - Remove files from the chat
@@ -360,46 +334,74 @@ Available commands:
 /test - Run the test suite
 /image - Add an image to the conversation
 /help - Show this help message
-              `,
-            });
-            break;
-          default:
-            this.messages.push({ sender: 'system', text: `Unknown command: ${command}` });
-        }
-      } else {
-        try {
-          const lastCommandOutput = this.messages.length > 0 ? this.messages[this.messages.length - 1].text : '';
-          const response = await this.chain.invoke({
-            input: query,
-            chat_history: this.messages,
-            codebase: this.codebase,
-            diff: this.diff,
-            lastCommandOutput,
+            `,
           });
-          this.messages.push({ sender: 'ai', text: response });
+          break;
+        default:
+          this.messages.push({ sender: 'system', text: `Unknown command: ${command}` });
+      }
+    } catch (error) {
+      this.messages.push({ sender: 'system', text: `Error executing command ${command}: ${error.message}` });
+    }
+  }
 
-          const parsedDiff = parseDiff(response);
-          if (parsedDiff) {
-            try {
-              await applyDiff(parsedDiff);
-              this.diff = await this.backend.diff();
-              if (this.options.autoCommit) {
-                await this.backend.record('Auto-commit');
-              }
-            } catch (error) {
-              this.messages.push({
-                sender: 'system',
-                text: `Error applying diff: ${error.message}`,
-              });
-            }
+  async handleQuery(query) {
+    try {
+      const lastCommandOutput = this.messages.length > 0 ? this.messages[this.messages.length - 1].text : '';
+      const response = await this.chain.invoke({
+        input: query,
+        chat_history: this.messages,
+        codebase: this.codebase,
+        diff: this.diff,
+        lastCommandOutput,
+      });
+      this.messages.push({ sender: 'ai', text: response });
+
+      const parsedDiff = parseDiff(response);
+      if (parsedDiff) {
+        try {
+          await applyDiff(parsedDiff);
+          this.diff = await this.backend.diff();
+          this.messages.push({ sender: 'system', text: 'Diff applied successfully.' });
+          if (this.options.autoCommit) {
+            await this.backend.record('Auto-commit');
+            this.messages.push({ sender: 'system', text: 'Changes auto-committed.' });
           }
         } catch (error) {
           this.messages.push({
             sender: 'system',
-            text: `Error invoking LLM: ${error.message}`,
+            text: `Error applying diff: ${error.message}`,
           });
         }
       }
+    } catch (error) {
+      this.messages.push({
+        sender: 'system',
+        text: `Error invoking LLM: ${error.message}`,
+      });
+    }
+  }
+
+  async start(files, globFn) {
+    try {
+      await this.initialize();
+      await this.loadFiles(files, globFn);
+    } catch (error) {
+      // Errors are already pushed to this.messages in the respective methods
+      this.rerender();
+      return;
+    }
+
+    this.onSendMessage = async (query) => {
+      this.messages.push({ sender: 'user', text: query });
+
+      if (query.startsWith('/')) {
+        const [command, ...args] = query.slice(1).split(' ');
+        await this.handleCommand(command, args);
+      } else {
+        await this.handleQuery(query);
+      }
+
       this.rerender();
     };
 
@@ -416,6 +418,10 @@ Available commands:
     };
 
     this.rerender();
+  }
+
+  async run(files, globFn) {
+    await this.start(files, globFn);
   }
 
   getOnSendMessage() {

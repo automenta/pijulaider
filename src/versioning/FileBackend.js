@@ -39,20 +39,24 @@ class FileBackend extends VersioningBackend {
     // No-op for file backend
   }
 
-  unrecord(hash) {
-    throw new Error('Unrecord is not supported by the File backend.');
+  async unrecord(hash) {
+    // No-op for file backend
   }
 
-  channel(name) {
-    throw new Error('Channels are not supported by the File backend.');
+  async channel(name) {
+    // No-op for file backend
   }
 
-  apply(patch) {
-    throw new Error('Apply is not supported by the File backend.');
+  async patch(subcommand, name) {
+    // No-op for file backend
   }
 
-  conflicts() {
-    throw new Error('Conflicts are not supported by the File backend.');
+  async apply(patch) {
+    // No-op for file backend
+  }
+
+  async conflicts() {
+    return '[]';
   }
 
   async revert(file) {

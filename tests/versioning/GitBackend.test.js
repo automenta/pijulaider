@@ -31,19 +31,19 @@ describe('GitBackend', () => {
 
   it('should switch to an existing branch', async () => {
     const name = 'test-branch';
-    await backend.channel(name);
+    await backend.channel('switch', name);
     expect(execa).toHaveBeenCalledWith('git', ['checkout', name]);
   });
 
   it('should create a new branch if it does not exist', async () => {
     const name = 'test-branch';
     execa.mockImplementation((command, args) => {
-      if (args[1] === name) {
+      if (args[0] === 'checkout' && args[1] === name) {
         return Promise.reject({ stderr: 'did not match any file(s) known to git' });
       }
       return Promise.resolve();
     });
-    await backend.channel(name);
+    await backend.channel('switch', name);
     expect(execa).toHaveBeenCalledWith('git', ['checkout', '-b', name]);
   });
 

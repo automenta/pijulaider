@@ -31,7 +31,7 @@ describe('PijulBackend', () => {
 
   it('should switch to a channel', async () => {
     const name = 'test-channel';
-    await backend.channel(name);
+    await backend.channel('switch', name);
     expect(execa).toHaveBeenCalledWith('pijul', ['channel', 'switch', name]);
   });
 

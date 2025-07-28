@@ -40,13 +40,36 @@ class GitBackend extends VersioningBackend {
       if (subcommand === 'new') {
         await this.execa('git', ['checkout', '-b', name]);
       } else if (subcommand === 'switch') {
-        await this.execa('git', ['checkout', name]);
+        try {
+          await this.execa('git', ['checkout', name]);
+        } catch (error) {
+          if (error.stderr.includes('did not match any file(s) known to git')) {
+            await this.execa('git', ['checkout', '-b', name]);
+          } else {
+            throw error;
+          }
+        }
       } else if (subcommand === 'list') {
         const { stdout } = await this.execa('git', ['branch']);
         return stdout;
       }
     } catch (error) {
       console.error(`Error with channel command in Git:`, error);
+      throw error;
+    }
+  }
+
+  async patch(subcommand, name) {
+    try {
+      if (subcommand === 'list') {
+        const { stdout } = await this.execa('git', ['log', '--oneline']);
+        return stdout;
+      } else if (subcommand === 'apply') {
+        const { stdout } = await this.execa('git', ['show', name]);
+        await this.apply(stdout);
+      }
+    } catch (error) {
+      console.error(`Error with patch command in Git:`, error);
       throw error;
     }
   }

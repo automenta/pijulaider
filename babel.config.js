@@ -13,5 +13,6 @@ module.exports = {
   plugins: [
     '@babel/plugin-transform-runtime',
     '@babel/plugin-syntax-top-level-await',
+    '@babel/plugin-transform-modules-commonjs',
   ],
 };
