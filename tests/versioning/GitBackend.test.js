@@ -7,7 +7,8 @@ describe('GitBackend', () => {
   let backend;
 
   beforeEach(() => {
-    backend = new GitBackend();
+    execa.mockClear();
+    backend = new GitBackend(execa);
   });
 
   it('should add a file', async () => {
@@ -56,7 +57,7 @@ describe('GitBackend', () => {
   it('should get conflicts', async () => {
     execa.mockResolvedValue({ stdout: 'UU file1.txt\n' });
     const conflicts = await backend.conflicts();
-    expect(JSON.parse(conflicts)).toEqual([]);
+    expect(JSON.parse(conflicts)).toEqual(['file1.txt']);
   });
 
   it('should get a diff', async () => {

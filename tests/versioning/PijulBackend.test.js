@@ -7,7 +7,8 @@ describe('PijulBackend', () => {
   let backend;
 
   beforeEach(() => {
-    backend = new PijulBackend();
+    execa.mockClear();
+    backend = new PijulBackend(execa);
   });
 
   it('should add a file', async () => {

@@ -1,21 +1,24 @@
-const { applyPatch } = require('apply-diff');
-const { parse } = require('diff');
+const fs = require('fs').promises;
+const { applyPatch, parsePatch } = require('diff');
 
-const parseDiff = (diff) => {
-  try {
-    return parse(diff);
-  } catch (error) {
-    return null;
+function parseDiff(diffStr) {
+  const files = parsePatch(diffStr);
+  const diffs = {};
+  for (const file of files) {
+    diffs[file.oldFileName.split('/').slice(1).join('/')] = file.hunks;
   }
-};
+  return diffs;
+}
 
-const applyDiff = async (parsedDiff) => {
-  for (const file of parsedDiff) {
-    await applyPatch(process.cwd(), file);
+async function applyDiff(parsedDiff) {
+  for (const [file, hunks] of Object.entries(parsedDiff)) {
+    const original = await fs.readFile(file, 'utf-8');
+    const patched = applyPatch(original, { hunks: hunks });
+    if (patched === false) {
+      throw new Error(`Failed to apply patch to ${file}`);
+    }
+    await fs.writeFile(file, patched);
   }
-};
+}
 
-module.exports = {
-  parseDiff,
-  applyDiff,
-};
+module.exports = { parseDiff, applyDiff };

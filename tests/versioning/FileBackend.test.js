@@ -8,7 +8,8 @@ describe('FileBackend', () => {
   let backend;
 
   beforeEach(() => {
-    backend = new FileBackend();
+    execa.mockClear();
+    backend = new FileBackend(execa);
   });
 
   it('should backup a file when adding it', async () => {
