@@ -1,9 +1,9 @@
 const React = require('react');
 const { Box, Text } = require('ink');
 const TextInput = require('ink-text-input').default;
-const SelectInput = require('ink-select-input').default;
 const Mic = require('node-microphone');
 const DiffView = require('./DiffView');
+const ScrollView = require('./ScrollView');
 
 const Chat = ({ messages, onSendMessage, diff }) => {
   const [query, setQuery] = React.useState('');
@@ -36,26 +36,18 @@ const Chat = ({ messages, onSendMessage, diff }) => {
     onSendMessage('/image');
   };
 
-  const items = messages.map((message, i) => {
-    if (message.image) {
-      return {
-        label: `${message.sender}: [Image: ${message.image}]`,
-        value: i,
-      };
-    }
-    return {
-      label: `${message.sender}: ${message.text}`,
-      value: i,
-    };
-  });
-
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1}>
-      <Box flexDirection="column" flexGrow={1} marginBottom={1}>
-        <SelectInput items={items} />
-      </Box>
+    <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} width="100%" height="100%">
+      <ScrollView>
+        {messages.map((message, i) => (
+          <Box key={i} flexDirection="column" marginBottom={1}>
+            <Text bold>{message.sender}:</Text>
+            {message.image ? <Text>[Image: {message.image}]</Text> : <Text>{message.text}</Text>}
+          </Box>
+        ))}
+      </ScrollView>
       {diff && (
-        <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} marginBottom={1}>
+        <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} marginY={1}>
           <Text>Changes:</Text>
           <DiffView diff={diff} />
         </Box>

@@ -35,16 +35,19 @@ class GitBackend extends VersioningBackend {
     }
   }
 
-  async channel(name) {
+  async channel(subcommand, name) {
     try {
-      await this.execa('git', ['checkout', name]);
-    } catch (error) {
-      // If the branch doesn't exist, create it
-      if (error.stderr.includes('did not match any file(s) known to git')) {
+      if (subcommand === 'new') {
         await this.execa('git', ['checkout', '-b', name]);
-      } else {
-        console.error(`Error switching to branch ${name} in Git:`, error);
+      } else if (subcommand === 'switch') {
+        await this.execa('git', ['checkout', name]);
+      } else if (subcommand === 'list') {
+        const { stdout } = await this.execa('git', ['branch']);
+        return stdout;
       }
+    } catch (error) {
+      console.error(`Error with channel command in Git:`, error);
+      throw error;
     }
   }
 
@@ -87,6 +90,10 @@ class GitBackend extends VersioningBackend {
       console.error('Error getting diff from Git:', error);
       return '';
     }
+  }
+
+  async undo() {
+    await this.unrecord('HEAD');
   }
 }
 

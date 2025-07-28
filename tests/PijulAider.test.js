@@ -15,7 +15,12 @@ jest.mock('../src/diffUtils', () => ({
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
+    access: jest.fn(),
   },
+}));
+jest.mock('file-picker', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 const fs = require('fs').promises;
@@ -147,5 +152,63 @@ describe('PijulAider', () => {
     aider.execa.mockRejectedValue(new Error());
     const backend = await aider.detectBackend();
     expect(backend).toBe('file');
+  });
+
+  it('should add a file to the chat', async () => {
+    const inquirer = require('inquirer');
+    inquirer.prompt = jest.fn().mockResolvedValue({ switchToPijul: false });
+    fs.readFile.mockResolvedValue('console.log("hello");');
+    fs.access.mockResolvedValue(undefined);
+    await aider.run([], jest.fn().mockResolvedValue([]));
+    const onSendMessage = aider.getOnSendMessage();
+    await onSendMessage('/add newfile.js');
+    expect(aider.codebase).toContain('--- newfile.js ---\nconsole.log("hello");');
+    expect(aider.messages).toContainEqual({
+      sender: 'system',
+      text: 'Added newfile.js to the chat.',
+    });
+  });
+
+  it('should drop a file from the chat', async () => {
+    const inquirer = require('inquirer');
+    inquirer.prompt = jest.fn().mockResolvedValue({ switchToPijul: false });
+    fs.readFile.mockResolvedValue('console.log("hello");');
+    fs.access.mockResolvedValue(undefined);
+    await aider.run([], jest.fn().mockResolvedValue(['existing.js']));
+    const onSendMessage = aider.getOnSendMessage();
+    await onSendMessage('/drop existing.js');
+    expect(aider.codebase).not.toContain('--- existing.js ---');
+    expect(aider.messages).toContainEqual({
+      sender: 'system',
+      text: 'Removed existing.js from the chat.',
+    });
+  });
+
+  it('should run a command', async () => {
+    const inquirer = require('inquirer');
+    inquirer.prompt = jest.fn().mockResolvedValue({ switchToPijul: false });
+    aider.execa.mockResolvedValue({ stdout: 'hello from command' });
+    await aider.run([], jest.fn().mockResolvedValue([]));
+    const onSendMessage = aider.getOnSendMessage();
+    await onSendMessage('/run echo "hello from command"');
+    expect(aider.execa).toHaveBeenCalledWith('echo', ['"hello', 'from', 'command"']);
+    expect(aider.messages).toContainEqual({
+      sender: 'system',
+      text: '`/run echo "hello from command"`\nhello from command',
+    });
+  });
+
+  it('should undo the last change', async () => {
+    const inquirer = require('inquirer');
+    inquirer.prompt = jest.fn().mockResolvedValue({ switchToPijul: false });
+    await aider.run([], jest.fn().mockResolvedValue([]));
+    const undoSpy = jest.spyOn(aider.backend, 'undo');
+    const onSendMessage = aider.getOnSendMessage();
+    await onSendMessage('/undo');
+    expect(undoSpy).toHaveBeenCalled();
+    expect(aider.messages).toContainEqual({
+      sender: 'system',
+      text: 'Undid the last change.',
+    });
   });
 });

@@ -12,13 +12,14 @@ class FileBackend extends VersioningBackend {
 
   async add(file) {
     try {
+      await fs.access(file);
       if (!this.files.has(file)) {
         const backupFile = `${file}.${Date.now()}.bak`;
         await fs.copyFile(file, backupFile);
         this.files.set(file, backupFile);
       }
     } catch (error) {
-      console.error(`Error adding file ${file}:`, error);
+      throw new Error(`File not found: ${file}`);
     }
   }
 
@@ -62,6 +63,12 @@ class FileBackend extends VersioningBackend {
       }
     } catch (error) {
       console.error(`Error reverting file ${file}:`, error);
+    }
+  }
+
+  async undo() {
+    for (const file of this.files.keys()) {
+      await this.revert(file);
     }
   }
 

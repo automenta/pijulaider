@@ -11,6 +11,7 @@ const Chat = require('./tui/Chat');
 const { editFile } = require('edit-file');
 const inquirer = require('inquirer');
 const { parseDiff, applyDiff } = require('./diffUtils');
+const filePicker = require('file-picker');
 const fs = require('fs').promises;
 
 const { execa: defaultExeca } = require('execa');
@@ -66,8 +67,7 @@ Here is the user's query:
       try {
         await this.execa('pijul-git', ['--version']);
       } catch (error) {
-        console.log('pijul-git is not installed. Please install it by running `cargo install pijul-git`.');
-        return;
+        throw new Error('pijul-git is not installed. Please install it by running `cargo install pijul-git`.');
       }
 
       try {
@@ -75,7 +75,7 @@ Here is the user's query:
         await this.execa('pijul-git', ['import']);
         console.log('Migration successful.');
       } catch (error) {
-        console.error('Error migrating from Git to Pijul:', error);
+        throw new Error(`Error migrating from Git to Pijul: ${error.message}`);
       }
     } else if (from === 'file' && to === 'pijul') {
       try {
@@ -90,14 +90,24 @@ Here is the user's query:
     }
   }
 
-  createBackend(backend) {
+  async createBackend(backend) {
     switch (backend) {
       case 'file':
         return new FileBackend(this.execa);
       case 'git':
-        return new GitBackend(this.execa);
+        try {
+          await this.execa('git', ['--version']);
+          return new GitBackend(this.execa);
+        } catch (error) {
+          throw new Error('Git is not installed. Please install it to use the Git backend.');
+        }
       case 'pijul':
-        return new PijulBackend(this.execa);
+        try {
+          await this.execa('pijul', ['--version']);
+          return new PijulBackend(this.execa);
+        } catch (error) {
+          throw new Error('Pijul is not installed. Please install it to use the Pijul backend.');
+        }
       default:
         throw new Error(`Unknown backend: ${backend}`);
     }
@@ -106,24 +116,29 @@ Here is the user's query:
   async run(files, globFn) {
     const { glob } = globFn ? { glob: globFn } : require('glob');
     const currentBackend = await this.detectBackend();
-    if (currentBackend !== 'pijul' && !this.options.backend) {
-      const { switchToPijul } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'switchToPijul',
-          message: 'Pijul is the recommended versioning backend. Would you like to switch to Pijul?',
-          default: true,
-        },
-      ]);
+    try {
+      if (currentBackend !== 'pijul' && !this.options.backend) {
+        const { switchToPijul } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'switchToPijul',
+            message: 'Pijul is the recommended versioning backend. Would you like to switch to Pijul?',
+            default: true,
+          },
+        ]);
 
-      if (switchToPijul) {
-        await this.migrate(currentBackend, 'pijul');
-        this.backend = this.createBackend('pijul');
+        if (switchToPijul) {
+          await this.migrate(currentBackend, 'pijul');
+          this.backend = await this.createBackend('pijul');
+        } else {
+          this.backend = await this.createBackend(currentBackend);
+        }
       } else {
-        this.backend = this.createBackend(currentBackend);
+        this.backend = await this.createBackend(this.options.backend || currentBackend);
       }
-    } else {
-      this.backend = this.createBackend(this.options.backend || currentBackend);
+    } catch (error) {
+      console.error(error.message);
+      return;
     }
 
     const allFiles = files.length > 0 ? files : await glob('**/*', { nodir: true });
@@ -145,6 +160,29 @@ Here is the user's query:
       if (query.startsWith('/')) {
         const [command, ...args] = query.slice(1).split(' ');
         switch (command) {
+          case 'add':
+            for (const file of args) {
+              this.backend.add(file);
+              try {
+                const content = await fs.readFile(file, 'utf-8');
+                this.codebase += `--- ${file} ---\n${content}\n\n`;
+                this.messages.push({ sender: 'system', text: `Added ${file} to the chat.` });
+              } catch (error) {
+                this.messages.push({ sender: 'system', text: `Error adding file ${file}: ${error.message}` });
+              }
+            }
+            break;
+          case 'drop':
+            for (const file of args) {
+              const fileRegex = new RegExp(`--- ${file} ---\\n[\\s\\S]*?\\n\\n`);
+              if (this.codebase.match(fileRegex)) {
+                this.codebase = this.codebase.replace(fileRegex, '');
+                this.messages.push({ sender: 'system', text: `Removed ${file} from the chat.` });
+              } else {
+                this.messages.push({ sender: 'system', text: `File ${file} not found in the chat.` });
+              }
+            }
+            break;
           case 'diff':
             this.diff = await this.backend.diff();
             break;
@@ -171,28 +209,58 @@ Here is the user's query:
               this.messages.push({ sender: 'system', text: `Error unrecording change: ${error.message}` });
             }
             break;
+          case 'undo':
+            try {
+              await this.backend.undo();
+              this.diff = await this.backend.diff();
+              this.messages.push({ sender: 'system', text: 'Undid the last change.' });
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error undoing change: ${error.message}` });
+            }
+            break;
           case 'channel':
             try {
               if (typeof this.backend.channel === 'function') {
-                await this.backend.channel(args[0]);
-                this.messages.push({ sender: 'system', text: `Switched to channel ${args[0]}` });
+                const subcommand = args[0];
+                const name = args[1];
+                if (subcommand === 'new') {
+                  await this.backend.channel(subcommand, name);
+                  this.messages.push({ sender: 'system', text: `Created channel ${name}` });
+                } else if (subcommand === 'switch') {
+                  await this.backend.channel(subcommand, name);
+                  this.messages.push({ sender: 'system', text: `Switched to channel ${name}` });
+                } else if (subcommand === 'list') {
+                  const channels = await this.backend.channel(subcommand);
+                  this.messages.push({ sender: 'system', text: `Channels:\n${channels}` });
+                } else {
+                  this.messages.push({ sender: 'system', text: 'Usage: /channel [new|switch|list] [name]' });
+                }
               } else {
                 this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
               }
             } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error switching to channel: ${error.message}` });
+              this.messages.push({ sender: 'system', text: `Error with channel command: ${error.message}` });
             }
             break;
-          case 'apply':
+          case 'patch':
             try {
-              if (typeof this.backend.apply === 'function') {
-                await this.backend.apply(args[0]);
-                this.messages.push({ sender: 'system', text: `Applied patch ${args[0]}` });
+              if (typeof this.backend.patch === 'function') {
+                const subcommand = args[0];
+                const name = args[1];
+                if (subcommand === 'list') {
+                  const patches = await this.backend.patch(subcommand);
+                  this.messages.push({ sender: 'system', text: `Patches:\n${patches}` });
+                } else if (subcommand === 'apply') {
+                  await this.backend.apply(name);
+                  this.messages.push({ sender: 'system', text: `Applied patch ${name}` });
+                } else {
+                  this.messages.push({ sender: 'system', text: 'Usage: /patch [list|apply] [hash]' });
+                }
               } else {
-                this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
+                this.messages.push({ sender: 'system', text: 'This backend does not support patches.' });
               }
             } catch (error) {
-              this.messages.push({ sender: 'system', text: `Error applying patch: ${error.message}` });
+              this.messages.push({ sender: 'system', text: `Error with patch command: ${error.message}` });
             }
             break;
           case 'conflicts':
@@ -222,6 +290,14 @@ Here is the user's query:
               }
             } catch (error) {
               this.messages.push({ sender: 'system', text: `Error getting conflicts: ${error.message}` });
+            }
+            break;
+          case 'run':
+            try {
+              const { stdout } = await this.execa(args[0], args.slice(1));
+              this.messages.push({ sender: 'system', text: `\`${query}\`\n${stdout}` });
+            } catch (error) {
+              this.messages.push({ sender: 'system', text: `Error running command: ${error.message}` });
             }
             break;
           case 'test':
@@ -257,13 +333,10 @@ Here is the user's query:
             }
             break;
           case 'image':
-            const { imagePath } = await inquirer.prompt([
-              {
-                type: 'input',
-                name: 'imagePath',
-                message: 'Enter the path to the image:',
-              },
-            ]);
+            const [imagePath] = await filePicker({
+              type: 'image',
+              multiple: false,
+            });
             if (imagePath) {
               this.messages.push({ sender: 'user', image: imagePath });
             }
@@ -273,12 +346,16 @@ Here is the user's query:
               sender: 'system',
               text: `
 Available commands:
+/add <file>... - Add files to the chat
+/drop <file>... - Remove files from the chat
+/run <command> - Run a shell command
+/undo - Undo the last change
 /diff - Show the current diff
 /edit <file> - Edit a file
 /record <message> - Record a change
 /unrecord <hash> - Unrecord a change
-/channel <name> - Switch to a channel (Pijul) or create a branch (Git)
-/apply <patch> - Apply a patch
+/channel [new|switch|list] [name] - Manage channels (Pijul) or branches (Git)
+/patch [list|apply] [hash] - Manage patches (Pijul)
 /conflicts - List conflicts
 /test - Run the test suite
 /image - Add an image to the conversation

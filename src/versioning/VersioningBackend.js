@@ -15,11 +15,11 @@ class VersioningBackend {
     throw new Error('Not implemented');
   }
 
-  channel(name) {
+  channel(subcommand, name) {
     throw new Error('Not implemented');
   }
 
-  apply(patch) {
+  patch(subcommand, name) {
     throw new Error('Not implemented');
   }
 
@@ -28,6 +28,10 @@ class VersioningBackend {
   }
 
   revert(file) {
+    throw new Error('Not implemented');
+  }
+
+  undo() {
     throw new Error('Not implemented');
   }
 }

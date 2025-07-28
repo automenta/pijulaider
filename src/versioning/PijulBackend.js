@@ -41,19 +41,33 @@ class PijulBackend extends VersioningBackend {
     }
   }
 
-  async channel(name) {
+  async channel(subcommand, name) {
     try {
-      await this.execa('pijul', ['channel', 'switch', name]);
+      if (subcommand === 'new') {
+        await this.execa('pijul', ['channel', 'new', name]);
+      } else if (subcommand === 'switch') {
+        await this.execa('pijul', ['channel', 'switch', name]);
+      } else if (subcommand === 'list') {
+        const { stdout } = await this.execa('pijul', ['channel']);
+        return stdout;
+      }
     } catch (error) {
-      console.error(`Error switching to channel ${name} in Pijul:`, error);
+      console.error(`Error with channel command in Pijul:`, error);
+      throw error;
     }
   }
 
-  async patch(name) {
+  async patch(subcommand, name) {
     try {
-      await this.execa('pijul', ['patch', 'add', name]);
+      if (subcommand === 'add') {
+        await this.execa('pijul', ['patch', 'add', name]);
+      } else if (subcommand === 'list') {
+        const { stdout } = await this.execa('pijul', ['log']);
+        return stdout;
+      }
     } catch (error) {
-      console.error(`Error creating patch ${name} in Pijul:`, error);
+      console.error(`Error with patch command in Pijul:`, error);
+      throw error;
     }
   }
 
@@ -91,6 +105,18 @@ class PijulBackend extends VersioningBackend {
       await this.execa('pijul', ['reset', file]);
     } catch (error) {
       console.error(`Error reverting file ${file} in Pijul:`, error);
+    }
+  }
+
+  async undo() {
+    try {
+      const { stdout } = await this.execa('pijul', ['log', '--limit', '1', '--hash-only']);
+      const hash = stdout.trim();
+      if (hash) {
+        await this.unrecord(hash);
+      }
+    } catch (error) {
+      console.error('Error undoing last change in Pijul:', error);
     }
   }
 }
