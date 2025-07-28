@@ -6,7 +6,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['add', file]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error adding file ${file} to Pijul:`, error);
     }
   }
 
@@ -14,7 +14,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['record', '-m', message]);
     } catch (error) {
-      console.error(error);
+      console.error('Error recording changes in Pijul:', error);
     }
   }
 
@@ -22,7 +22,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['unrecord', hash]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error unrecording change ${hash} in Pijul:`, error);
     }
   }
 
@@ -31,7 +31,7 @@ class PijulBackend extends VersioningBackend {
       const { stdout } = await execa('pijul', ['diff']);
       return stdout;
     } catch (error) {
-      console.error(error);
+      console.error('Error gettings diff from Pijul:', error);
       return '';
     }
   }
@@ -40,7 +40,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['channel', 'switch', name]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error switching to channel ${name} in Pijul:`, error);
     }
   }
 
@@ -48,7 +48,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['patch', 'add', name]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error creating patch ${name} in Pijul:`, error);
     }
   }
 
@@ -56,7 +56,7 @@ class PijulBackend extends VersioningBackend {
     try {
       await execa('pijul', ['apply', patch]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error applying patch ${patch} in Pijul:`, error);
     }
   }
 
@@ -76,7 +76,7 @@ class PijulBackend extends VersioningBackend {
         });
       return JSON.stringify(conflicts, null, 2);
     } catch (error) {
-      console.error(error);
+      console.error('Error getting conflicts from Pijul:', error);
       return '';
     }
   }

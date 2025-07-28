@@ -1,6 +1,6 @@
-const { OpenAI } = require('langchain/llms/openai');
-const { ChatPromptTemplate } = require('langchain/prompts');
-const { StringOutputParser } = require('langchain/schema/output_parser');
+const { ChatOpenAI } = require('@langchain/openai');
+const { ChatPromptTemplate } = require('@langchain/core/prompts');
+const { StringOutputParser } = require('@langchain/core/output_parsers');
 const FileBackend = require('./versioning/FileBackend');
 const GitBackend = require('./versioning/GitBackend');
 const PijulBackend = require('./versioning/PijulBackend');
@@ -10,35 +10,35 @@ const { render } = require('ink');
 const Chat = require('./tui/Chat');
 const { editFile } = require('edit-file');
 const inquirer = require('inquirer');
+const { parseDiff, applyDiff } = require('./diffUtils');
 
 class PijulAider {
   constructor(options) {
     this.options = options;
-    this.llm = new OpenAI({ modelName: options.model });
+    this.llm = new ChatOpenAI({ modelName: options.model });
     this.prompt = ChatPromptTemplate.fromTemplate(
       'You are a helpful AI assistant that helps with coding.'
     );
     this.outputParser = new StringOutputParser();
     this.chain = this.prompt.pipe(this.llm).pipe(this.outputParser);
-    this.backend = this.createBackend(options.backend);
+    this.backend = null;
     this.messages = [];
+    this.diff = '';
   }
 
   async detectBackend() {
+    try {
+      await execa('pijul', ['status']);
+      return 'pijul';
+    } catch (error) {
+      // Not a pijul repository
+    }
+
     try {
       await execa('git', ['rev-parse', '--is-inside-work-tree']);
       return 'git';
     } catch (error) {
       // Not a git repository
-    }
-
-    try {
-      const fs = require('fs');
-      if (fs.existsSync('.pijul')) {
-        return 'pijul';
-      }
-    } catch (error) {
-      // Not a pijul repository
     }
 
     return 'file';
@@ -112,78 +112,78 @@ class PijulAider {
       this.backend.add(file);
     }
 
-    let diff = await this.backend.diff();
+    this.diff = await this.backend.diff();
 
     const onSendMessage = async (query) => {
-      if (query === '/diff') {
-        diff = await this.backend.diff();
-        return;
-      } else if (query.startsWith('/edit')) {
-        const fileToEdit = query.split(' ')[1];
-        if (fileToEdit) {
-          await editFile(fileToEdit);
-          diff = await this.backend.diff();
-        } else {
-          console.log('Please specify a file to edit.');
-        }
-        return;
-      } else if (query.startsWith('/record')) {
-        const message = query.split(' ').slice(1).join(' ');
-        await this.backend.record(message);
-        return;
-      } else if (query.startsWith('/unrecord')) {
-        if (typeof this.backend.unrecord !== 'function') {
-          this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
-          return;
-        }
-        const hash = query.split(' ')[1];
-        await this.backend.unrecord(hash);
-        return;
-      } else if (query.startsWith('/channel')) {
-        if (typeof this.backend.channel !== 'function') {
-          this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
-          return;
-        }
-        const name = query.split(' ')[1];
-        await this.backend.channel(name);
-        return;
-      } else if (query.startsWith('/apply')) {
-        if (typeof this.backend.apply !== 'function') {
-          this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
-          return;
-        }
-        const patch = query.split(' ')[1];
-        await this.backend.apply(patch);
-        return;
-      } else if (query.startsWith('/conflicts')) {
-        if (typeof this.backend.conflicts !== 'function') {
-          this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
-          return;
-        }
-        const conflicts = await this.backend.conflicts();
-        try {
-          const parsedConflicts = JSON.parse(conflicts);
-          if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
-            let conflictMessage = 'Conflicts:\n';
-            for (const conflict of parsedConflicts) {
-              if (typeof conflict === 'string') {
-                conflictMessage += `- ${conflict}\n`;
-              } else if (typeof conflict === 'object' && conflict.hash) {
-                conflictMessage += `- ${conflict.hash}\n`;
-              }
+      this.messages.push({ sender: 'user', text: query });
+
+      if (query.startsWith('/')) {
+        const [command, ...args] = query.slice(1).split(' ');
+        switch (command) {
+          case 'diff':
+            this.diff = await this.backend.diff();
+            break;
+          case 'edit':
+            if (args.length > 0) {
+              await editFile(args[0]);
+              this.diff = await this.backend.diff();
+            } else {
+              this.messages.push({ sender: 'system', text: 'Please specify a file to edit.' });
             }
-            this.messages.push({ sender: 'system', text: conflictMessage });
-          } else {
-            this.messages.push({ sender: 'system', text: 'No conflicts found.' });
-          }
-        } catch (error) {
-          this.messages.push({ sender: 'system', text: conflicts });
-        }
-        return;
-      } else if (query === '/help') {
-        this.messages.push({
-          sender: 'system',
-          text: `
+            break;
+          case 'record':
+            await this.backend.record(args.join(' '));
+            break;
+          case 'unrecord':
+            if (typeof this.backend.unrecord === 'function') {
+              await this.backend.unrecord(args[0]);
+            } else {
+              this.messages.push({ sender: 'system', text: 'This backend does not support unrecord.' });
+            }
+            break;
+          case 'channel':
+            if (typeof this.backend.channel === 'function') {
+              await this.backend.channel(args[0]);
+            } else {
+              this.messages.push({ sender: 'system', text: 'This backend does not support channels.' });
+            }
+            break;
+          case 'apply':
+            if (typeof this.backend.apply === 'function') {
+              await this.backend.apply(args[0]);
+            } else {
+              this.messages.push({ sender: 'system', text: 'This backend does not support apply.' });
+            }
+            break;
+          case 'conflicts':
+            if (typeof this.backend.conflicts === 'function') {
+              const conflicts = await this.backend.conflicts();
+              try {
+                const parsedConflicts = JSON.parse(conflicts);
+                if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
+                  let conflictMessage = 'Conflicts:\n';
+                  for (const conflict of parsedConflicts) {
+                    if (typeof conflict === 'string') {
+                      conflictMessage += `- ${conflict}\n`;
+                    } else if (typeof conflict === 'object' && conflict.hash) {
+                      conflictMessage += `- ${conflict.hash}\n`;
+                    }
+                  }
+                  this.messages.push({ sender: 'system', text: conflictMessage });
+                } else {
+                  this.messages.push({ sender: 'system', text: 'No conflicts found.' });
+                }
+              } catch (error) {
+                this.messages.push({ sender: 'system', text: conflicts });
+              }
+            } else {
+              this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
+            }
+            break;
+          case 'help':
+            this.messages.push({
+              sender: 'system',
+              text: `
 Available commands:
 /diff - Show the current diff
 /edit <file> - Edit a file
@@ -193,42 +193,48 @@ Available commands:
 /apply <patch> - Apply a patch
 /conflicts - List conflicts
 /help - Show this help message
-          `,
+              `,
+            });
+            break;
+          default:
+            this.messages.push({ sender: 'system', text: `Unknown command: ${command}` });
+        }
+      } else {
+        const response = await this.chain.invoke({
+          input: query,
+          chat_history: this.messages,
         });
-        return;
-      }
+        this.messages.push({ sender: 'ai', text: response });
 
-      this.messages.push({ sender: 'user', text: query });
-      const response = await this.chain.invoke({
-        input: query,
-        chat_history: this.messages,
-      });
-      this.messages.push({ sender: 'ai', text: response });
-
-      const { parseDiff, applyDiff } = require('./diffUtils');
-      const parsedDiff = parseDiff(response);
-      if (parsedDiff) {
-        try {
-          await applyDiff(parsedDiff);
-          diff = await this.backend.diff();
-        } catch (error) {
-          this.messages.push({
-            sender: 'system',
-            text: 'Error applying diff. Please check the diff and try again.',
-          });
+        const parsedDiff = parseDiff(response);
+        if (parsedDiff) {
+          try {
+            await applyDiff(parsedDiff);
+            this.diff = await this.backend.diff();
+          } catch (error) {
+            this.messages.push({
+              sender: 'system',
+              text: 'Error applying diff. Please check the diff and try again.',
+            });
+          }
         }
       }
+      this.rerender();
     };
 
     const App = () => (
       <Chat
         messages={this.messages}
         onSendMessage={onSendMessage}
-        diff={diff}
+        diff={this.diff}
       />
     );
 
-    render(React.createElement(App));
+    this.rerender = () => {
+      render(React.createElement(App));
+    };
+
+    this.rerender();
   }
 }
 

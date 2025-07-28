@@ -1,7 +1,7 @@
 {
-  "name": "app",
-  "version": "1.0.0",
-  "description": "",
+  "name": "pijulaider",
+  "version": "0.0.1",
+  "description": "A terminal-based AI pair programming tool for LLM-driven code editing, feature generation, bug fixing, and change management.",
   "main": "src/index.js",
   "bin": {
     "pijulaider": "src/index.js"
@@ -16,20 +16,23 @@
     "type": "git",
     "url": "git+https://github.com/automenta/pijulaider.git"
   },
-  "keywords": [],
+  "keywords": [
+    "ai",
+    "pijul",
+    "aider",
+    "llm",
+    "langchain"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/automenta/pijulaider/issues"
   },
   "homepage": "https://github.com/automenta/pijulaider#readme",
   "dependencies": {
-    "@babel/preset-env": "^7.28.0",
     "@langchain/core": "^0.3.66",
     "@langchain/openai": "^0.6.3",
     "apply-diff": "^1.2.5",
-    "babel-jest": "^30.0.5",
     "commander": "^14.0.0",
     "diff": "^8.0.2",
     "edit-file": "^0.3.0",
@@ -38,19 +41,16 @@
     "ink": "^6.1.0",
     "ink-text-input": "^6.0.0",
     "inquirer": "^12.8.2",
-    "jest": "^30.0.5",
     "langchain": "^0.3.30",
-    "mocha": "^11.7.1",
     "node-microphone": "^0.1.6",
-    "react": "^19.1.0",
-    "ts-node": "^10.9.2"
+    "react": "^19.1.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
-    "@types/commander": "^2.12.0",
-    "@types/ink": "^0.5.2",
-    "@types/node": "^24.1.0",
-    "@types/react": "^19.1.8",
-    "typescript": "^5.8.3"
+    "babel-jest": "^30.0.5",
+    "jest": "^30.0.5",
+    "@babel/plugin-transform-runtime": "^7.28.0",
+    "@babel/runtime": "^7.28.0"
   }
 }

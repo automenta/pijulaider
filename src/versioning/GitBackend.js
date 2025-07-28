@@ -6,7 +6,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['add', file]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error adding file ${file} to Git:`, error);
     }
   }
 
@@ -14,7 +14,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['commit', '-m', message]);
     } catch (error) {
-      console.error(error);
+      console.error('Error committing to Git:', error);
     }
   }
 
@@ -26,7 +26,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['revert', '--no-edit', hash]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error reverting commit ${hash} in Git:`, error);
     }
   }
 
@@ -34,7 +34,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['checkout', '-b', name]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error creating branch ${name} in Git:`, error);
     }
   }
 
@@ -42,7 +42,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['apply', patch]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error applying patch in Git:`, error);
     }
   }
 
@@ -55,7 +55,7 @@ class GitBackend extends VersioningBackend {
         .map((line) => line.split(' ')[1]);
       return JSON.stringify(conflicts, null, 2);
     } catch (error) {
-      console.error(error);
+      console.error('Error getting conflicts from Git:', error);
       return '';
     }
   }
@@ -64,7 +64,7 @@ class GitBackend extends VersioningBackend {
     try {
       await execa('git', ['checkout', 'HEAD', '--', file]);
     } catch (error) {
-      console.error(error);
+      console.error(`Error reverting file ${file} in Git:`, error);
     }
   }
 
@@ -73,7 +73,7 @@ class GitBackend extends VersioningBackend {
       const { stdout } = await execa('git', ['diff']);
       return stdout;
     } catch (error) {
-      console.error(error);
+      console.error('Error getting diff from Git:', error);
       return '';
     }
   }

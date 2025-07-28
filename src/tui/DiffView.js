@@ -1,19 +1,21 @@
 const React = require('react');
 const { Box, Text } = require('ink');
-const { parseTwoWayDiff } = require('diff');
 
 const DiffView = ({ diff }) => {
-  const diffLines = diff.split('\n');
-  const structuredDiff = parseTwoWayDiff(diff);
-
+  const lines = diff.split('\n');
   return (
     <Box flexDirection="column">
-      {structuredDiff.map((part, i) => {
-        const color = part.added ? 'green' : part.removed ? 'red' : 'white';
+      {lines.map((line, i) => {
+        let color = 'white';
+        if (line.startsWith('+')) {
+          color = 'green';
+        } else if (line.startsWith('-')) {
+          color = 'red';
+        }
         return (
-          <Box key={i}>
-            <Text color={color}>{part.value}</Text>
-          </Box>
+          <Text key={i} color={color}>
+            {line}
+          </Text>
         );
       })}
     </Box>

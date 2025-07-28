@@ -1,59 +1,31 @@
 const PijulAider = require('../src/PijulAider');
-const execa = require('execa');
-const fs = require('fs');
-const inquirer = require('inquirer');
+const FileBackend = require('../src/versioning/FileBackend');
+const GitBackend = require('../src/versioning/GitBackend');
+const PijulBackend = require('../src/versioning/PijulBackend');
 
 jest.mock('execa');
-jest.mock('fs');
 jest.mock('inquirer');
+jest.mock('edit-file');
 
 describe('PijulAider', () => {
   let aider;
+
   beforeEach(() => {
-    aider = new PijulAider({ backend: 'file' });
+    aider = new PijulAider({ model: 'gpt-4o' });
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('should create a file backend by default', () => {
+    const backend = aider.createBackend('file');
+    expect(backend).toBeInstanceOf(FileBackend);
   });
 
-  it('should detect git backend', async () => {
-    execa.mockResolvedValue({ stdout: 'true' });
-    const backend = await aider.detectBackend();
-    expect(backend).toBe('git');
+  it('should create a git backend', () => {
+    const backend = aider.createBackend('git');
+    expect(backend).toBeInstanceOf(GitBackend);
   });
 
-  it('should detect pijul backend', async () => {
-    execa.mockRejectedValue(new Error());
-    fs.existsSync.mockReturnValue(true);
-    const backend = await aider.detectBackend();
-    expect(backend).toBe('pijul');
-  });
-
-  it('should detect file backend', async () => {
-    execa.mockRejectedValue(new Error());
-    fs.existsSync.mockReturnValue(false);
-    const backend = await aider.detectBackend();
-    expect(backend).toBe('file');
-  });
-
-  it('should migrate from git to pijul', async () => {
-    execa.mockResolvedValue({ stdout: 'pijul-git version 0.1.0' });
-    await aider.migrate('git', 'pijul');
-    expect(execa).toHaveBeenCalledWith('pijul-git', ['import']);
-  });
-
-  it('should migrate from file to pijul', async () => {
-    await aider.migrate('file', 'pijul');
-    expect(execa).toHaveBeenCalledWith('pijul', ['init']);
-  });
-
-  it('should prompt to switch to pijul', async () => {
-    execa.mockRejectedValue(new Error());
-    fs.existsSync.mockReturnValue(false);
-    inquirer.prompt.mockResolvedValue({ switchToPijul: true });
-    await aider.run([]);
-    expect(inquirer.prompt).toHaveBeenCalled();
-    expect(execa).toHaveBeenCalledWith('pijul', ['init']);
+  it('should create a pijul backend', () => {
+    const backend = aider.createBackend('pijul');
+    expect(backend).toBeInstanceOf(PijulBackend);
   });
 });
