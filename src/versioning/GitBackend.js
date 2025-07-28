@@ -3,20 +3,41 @@ const VersioningBackend = require('./VersioningBackend');
 
 class GitBackend extends VersioningBackend {
   async add(file) {
-    await execa('git', ['add', file]);
+    try {
+      await execa('git', ['add', file]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async commit(message) {
-    await execa('git', ['commit', '-m', message]);
+    try {
+      await execa('git', ['commit', '-m', message]);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async record(message) {
+    return this.commit(message);
   }
 
   async revert(file) {
-    await execa('git', ['checkout', 'HEAD', '--', file]);
+    try {
+      await execa('git', ['checkout', 'HEAD', '--', file]);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async diff() {
-    const { stdout } = await execa('git', ['diff']);
-    return stdout;
+    try {
+      const { stdout } = await execa('git', ['diff']);
+      return stdout;
+    } catch (error) {
+      console.error(error);
+      return '';
+    }
   }
 }
 

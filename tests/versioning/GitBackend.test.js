@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const execa = require('execa');
+const { execa } = require('execa');
 const GitBackend = require('../../src/versioning/GitBackend');
 
 describe('GitBackend', () => {

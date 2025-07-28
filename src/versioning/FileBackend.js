@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const execa = require('execa');
+const { execa } = require('execa');
 const VersioningBackend = require('./VersioningBackend');
 
 class FileBackend extends VersioningBackend {
@@ -9,44 +9,78 @@ class FileBackend extends VersioningBackend {
     this.files = new Map();
   }
 
-  /**
-   * @param {string} file
-   */
   add(file) {
-    if (!this.files.has(file)) {
-      const backupFile = `${file}.${Date.now()}.bak`;
-      fs.copyFileSync(file, backupFile);
-      this.files.set(file, backupFile);
+    try {
+      if (!this.files.has(file)) {
+        const backupFile = `${file}.${Date.now()}.bak`;
+        fs.copyFileSync(file, backupFile);
+        this.files.set(file, backupFile);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }
 
-  /**
-   * @param {string} message
-   */
+  unstage(file) {
+    try {
+      const backupFile = this.files.get(file);
+      if (backupFile) {
+        fs.unlinkSync(backupFile);
+        this.files.delete(file);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   commit(message) {
+    for (const backupFile of this.files.values()) {
+      try {
+        fs.unlinkSync(backupFile);
+      } catch (error) {
+        console.error(error);
+      }
+    }
     this.files.clear();
   }
 
-  /**
-   * @param {string} file
-   */
+  record(message) {
+    return this.commit(message);
+  }
+
   revert(file) {
-    const backupFile = this.files.get(file);
-    if (backupFile) {
-      fs.copyFileSync(backupFile, file);
+    try {
+      const backupFile = this.files.get(file);
+      if (backupFile) {
+        fs.copyFileSync(backupFile, file);
+      }
+    } catch (error) {
+      console.error(error);
     }
   }
 
-  /**
-   * @returns {string}
-   */
   async diff() {
     let diff = '';
     for (const [file, backupFile] of this.files) {
-      const { stdout } = await execa('diff', ['-u', backupFile, file], { reject: false });
-      diff += stdout;
+      try {
+        const { stdout } = await execa('diff', ['-u', backupFile, file], { reject: false });
+        diff += stdout;
+      } catch (error) {
+        console.error(error);
+      }
     }
     return diff;
+  }
+
+  clear() {
+    for (const backupFile of this.files.values()) {
+      try {
+        fs.unlinkSync(backupFile);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this.files.clear();
   }
 }
 

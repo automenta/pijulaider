@@ -1,26 +1,23 @@
-/**
- * @interface
- */
 class VersioningBackend {
-  /**
-   * @param {string} file
-   */
-  add(file) {}
+  add(file) {
+    throw new Error('Not implemented');
+  }
 
-  /**
-   * @param {string} message
-   */
-  commit(message) {}
+  commit(message) {
+    throw new Error('Not implemented');
+  }
 
-  /**
-   * @param {string} file
-   */
-  revert(file) {}
+  revert(file) {
+    throw new Error('Not implemented');
+  }
 
-  /**
-   * @returns {string}
-   */
-  diff() {}
+  diff() {
+    throw new Error('Not implemented');
+  }
+
+  record(message) {
+    throw new Error('Not implemented');
+  }
 }
 
 module.exports = VersioningBackend;
