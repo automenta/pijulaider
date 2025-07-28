@@ -1,68 +1,99 @@
 const React = require('react');
-const { Box, Text, Newline } = require('ink');
+const { Box, Text } = require('ink');
 const TextInput = require('ink-text-input').default;
 const Mic = require('node-microphone');
-const FilePicker = require('file-picker');
 const DiffView = require('./DiffView');
+const { SpeechClient } = require('@google-cloud/speech');
+const { ImgurClient } = require('imgur');
 
 const Chat = ({ messages, onSendMessage, diff }) => {
   const [query, setQuery] = React.useState('');
   const [isRecording, setIsRecording] = React.useState(false);
   const mic = new Mic();
+  const speechClient = new SpeechClient();
+  const imgurClient = new ImgurClient({
+    clientId: process.env.IMGUR_CLIENT_ID,
+    clientSecret: process.env.IMGUR_CLIENT_SECRET,
+    refreshToken: process.env.IMGUR_REFRESH_TOKEN,
+  });
 
   const handleSubmit = () => {
     onSendMessage(query);
     setQuery('');
   };
 
-  const handleMicClick = () => {
+  const handleMicClick = async () => {
     if (isRecording) {
       mic.stop();
+      setIsRecording(false);
     } else {
       mic.start();
-      mic.on('data', (data) => {
-        // TODO: Send audio data to speech-to-text service
-        // For now, we'll just log it to the console
-        console.log('Received audio data:', data);
-      });
+      setIsRecording(true);
+      const recognizeStream = speechClient
+        .streamingRecognize({
+          config: {
+            encoding: 'LINEAR16',
+            sampleRateHertz: 16000,
+            languageCode: 'en-US',
+          },
+          interimResults: false,
+        })
+        .on('error', console.error)
+        .on('data', (data) => {
+          setQuery(data.results[0].alternatives[0].transcript);
+          mic.stop();
+          setIsRecording(false);
+        });
+
+      mic.getAudioStream().pipe(recognizeStream);
     }
-    setIsRecording(!isRecording);
   };
 
-  const handleImageClick = () => {
-    FilePicker.pick(
+  const handleImageClick = async () => {
+    const { imagePath } = await inquirer.prompt([
       {
-        picker: 'all',
-        path: '/',
+        type: 'input',
+        name: 'imagePath',
+        message: 'Enter the path to the image:',
       },
-      (file) => {
-        // TODO: Handle the selected image
-        // For now, we'll just log the file path
-        console.log('Selected image:', file.path);
-        this.messages.push({ sender: 'user', text: `Selected image: ${file.path}` });
+    ]);
+    if (imagePath) {
+      try {
+        const response = await imgurClient.upload({
+          image: imagePath,
+          type: 'file',
+        });
+        onSendMessage(`/image ${response.data.link}`);
+      } catch (error) {
+        console.error('Error uploading image to Imgur:', error);
       }
-    );
+    }
   };
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1}>
-      <Box flexDirection="column" flexGrow={1} marginBottom={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor="green" padding={1} width="100%">
+      <Box justifyContent="center" marginBottom={1}>
+        <Text bold>PijulAider</Text>
+      </Box>
+      <Box flexDirection="column" flexGrow={1} marginBottom={1} borderStyle="round" borderColor="gray" padding={1}>
         {messages.map((message, i) => (
-          <Box key={i}>
-            <Text color={message.sender === 'user' ? 'green' : 'blue'}>
-              {message.sender}:{' '}
-            </Text>
-            <Text>{message.text}</Text>
+          <Box key={i} flexDirection="row">
+            <Text bold>{message.sender}: </Text>
+            {message.image ? (
+              <Text>[Image: {message.image}]</Text>
+            ) : (
+              <Text>{message.text}</Text>
+            )}
           </Box>
         ))}
       </Box>
       {diff && (
-        <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} marginBottom={1}>
-          <Text>Changes:</Text>
+        <Box flexDirection="column" borderStyle="round" borderColor="yellow" padding={1} marginBottom={1}>
+          <Text bold>Changes:</Text>
           <DiffView diff={diff} />
         </Box>
       )}
-      <Box borderStyle="round" borderColor="gray" paddingX={1}>
+      <Box borderStyle="round" borderColor="blue" paddingX={1}>
         <Text>You: </Text>
         <TextInput value={query} onChange={setQuery} onSubmit={handleSubmit} />
         <Box marginLeft={1} onClick={handleMicClick}>

@@ -1,78 +1,71 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 const execa = require('execa');
 const VersioningBackend = require('./VersioningBackend');
 
 class FileBackend extends VersioningBackend {
-  constructor() {
+  constructor(execa) {
     super();
     this.files = new Map();
+    this.execa = execa;
   }
 
-  add(file) {
+  async add(file) {
     try {
       if (!this.files.has(file)) {
         const backupFile = `${file}.${Date.now()}.bak`;
-        fs.copyFileSync(file, backupFile);
+        await fs.copyFile(file, backupFile);
         this.files.set(file, backupFile);
       }
     } catch (error) {
-      console.error(error);
+      console.error(`Error adding file ${file}:`, error);
     }
   }
 
-  unstage(file) {
+  async unstage(file) {
     try {
       const backupFile = this.files.get(file);
       if (backupFile) {
-        fs.unlinkSync(backupFile);
+        await fs.unlink(backupFile);
         this.files.delete(file);
       }
     } catch (error) {
-      console.error(error);
+      console.error(`Error unstaging file ${file}:`, error);
     }
   }
 
-  commit(message) {
-    for (const backupFile of this.files.values()) {
-      try {
-        fs.unlinkSync(backupFile);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-    this.files.clear();
+  async record(message) {
+    // No-op for file backend
   }
 
-  record(message) {
-    return this.commit(message);
+  async commit(message) {
+    return this.record(message);
   }
 
   unrecord(hash) {
-    console.log('Unrecord is not supported by the File backend.');
+    throw new Error('Unrecord is not supported by the File backend.');
   }
 
   channel(name) {
-    console.log('Channels are not supported by the File backend.');
+    throw new Error('Channels are not supported by the File backend.');
   }
 
   apply(patch) {
-    console.log('Apply is not supported by the File backend.');
+    throw new Error('Apply is not supported by the File backend.');
   }
 
   conflicts() {
-    console.log('Conflicts are not supported by the File backend.');
-    return '';
+    throw new Error('Conflicts are not supported by the File backend.');
   }
 
-  revert(file) {
+  async revert(file) {
     try {
       const backupFile = this.files.get(file);
       if (backupFile) {
-        fs.copyFileSync(backupFile, file);
+        await fs.copyFile(backupFile, file);
       }
     } catch (error) {
-      console.error(error);
+      console.error(`Error reverting file ${file}:`, error);
     }
   }
 
@@ -80,21 +73,21 @@ class FileBackend extends VersioningBackend {
     let diff = '';
     for (const [file, backupFile] of this.files) {
       try {
-        const { stdout } = await execa('diff', ['-u', backupFile, file], { reject: false });
+        const { stdout } = await this.execa('diff', ['-u', backupFile, file], { reject: false });
         diff += stdout;
       } catch (error) {
-        console.error(error);
+        console.error(`Error getting diff for file ${file}:`, error);
       }
     }
     return diff;
   }
 
-  clear() {
+  async clear() {
     for (const backupFile of this.files.values()) {
       try {
-        fs.unlinkSync(backupFile);
+        await fs.unlink(backupFile);
       } catch (error) {
-        console.error(error);
+        console.error(`Error clearing backups:`, error);
       }
     }
     this.files.clear();

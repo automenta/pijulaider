@@ -1,24 +1,21 @@
-const { execa } = require('execa');
+const { applyPatch } = require('apply-diff');
+const { parse } = require('diff');
 
-async function applyDiff(diff) {
+const parseDiff = (diff) => {
   try {
-    await execa('patch', ['-p1'], { input: diff });
+    return parse(diff);
   } catch (error) {
-    console.error('Error applying diff:', error);
-    throw error;
+    return null;
   }
-}
+};
 
-function parseDiff(response) {
-  const diffRegex = /```diff\n([\s\S]*?)```/;
-  const match = response.match(diffRegex);
-  if (match) {
-    return match[1];
+const applyDiff = async (parsedDiff) => {
+  for (const file of parsedDiff) {
+    await applyPatch(process.cwd(), file);
   }
-  return null;
-}
+};
 
 module.exports = {
-  applyDiff,
   parseDiff,
+  applyDiff,
 };

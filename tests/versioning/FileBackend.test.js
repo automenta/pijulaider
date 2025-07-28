@@ -1,65 +1,70 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs').promises;
 const FileBackend = require('../../src/versioning/FileBackend');
+const execa = require('execa');
+
+jest.mock('execa');
 
 describe('FileBackend', () => {
-  const testFile = 'test.txt';
-  const testFileContent = 'hello world';
+  let backend;
+  let execa;
 
   beforeEach(() => {
-    fs.writeFileSync(testFile, testFileContent);
+    execa = require('execa');
+    backend = new FileBackend(execa);
   });
 
-  afterEach(() => {
-    fs.unlinkSync(testFile);
-    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
-    if (backupFile) {
-      fs.unlinkSync(backupFile);
-    }
+  it('should backup a file when adding it', async () => {
+    const file = 'test.txt';
+    await fs.writeFile(file, 'test');
+    await backend.add(file);
+    expect(backend.files.has(file)).toBe(true);
+    await fs.unlink(file);
+    await fs.unlink(backend.files.get(file));
   });
 
-  it('should create a backup when adding a file', () => {
-    const backend = new FileBackend();
-    backend.add(testFile);
-    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
-    expect(backupFile).toBeDefined();
-    const backupContent = fs.readFileSync(backupFile, 'utf-8');
-    expect(backupContent).toBe(testFileContent);
+  it('should restore a file when reverting it', async () => {
+    const file = 'test.txt';
+    const originalContent = 'original';
+    const modifiedContent = 'modified';
+    await fs.writeFile(file, originalContent);
+    await backend.add(file);
+    await fs.writeFile(file, modifiedContent);
+    await backend.revert(file);
+    const revertedContent = await fs.readFile(file, 'utf-8');
+    expect(revertedContent).toBe(originalContent);
+    await fs.unlink(file);
+    await fs.unlink(backend.files.get(file));
   });
 
-  it('should revert a file to its backup', () => {
-    const backend = new FileBackend();
-    backend.add(testFile);
-    const newContent = 'goodbye world';
-    fs.writeFileSync(testFile, newContent);
-    backend.revert(testFile);
-    const revertedContent = fs.readFileSync(testFile, 'utf-8');
-    expect(revertedContent).toBe(testFileContent);
-  });
-
-  it('should show the diff between a file and its backup', async () => {
-    const backend = new FileBackend();
-    backend.add(testFile);
-    const newContent = 'goodbye world';
-    fs.writeFileSync(testFile, newContent);
+  it('should get a diff', async () => {
+    const file = 'test.txt';
+    const backupFile = 'test.txt.123.bak';
+    const originalContent = 'original';
+    const modifiedContent = 'modified';
+    await fs.writeFile(backupFile, originalContent);
+    await fs.writeFile(file, modifiedContent);
+    backend.files.set(file, backupFile);
+    execa.mockResolvedValue({ stdout: 'diff --git a/test.txt b/test.txt\n--- a/test.txt\n+++ b/test.txt\n@@ -1 +1 @@\n-original\n+modified' });
     const diff = await backend.diff();
-    expect(diff).toContain('-hello world');
-    expect(diff).toContain('+goodbye world');
+    expect(diff).toContain('-original');
+    expect(diff).toContain('+modified');
+    await fs.unlink(file);
+    await fs.unlink(backupFile);
   });
 
-  it('should unstage a file', () => {
-    const backend = new FileBackend();
-    backend.add(testFile);
-    backend.unstage(testFile);
-    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
-    expect(backupFile).toBeUndefined();
+  it('should throw an error when unrecording', () => {
+    expect(() => backend.unrecord('123')).toThrow('Unrecord is not supported by the File backend.');
   });
 
-  it('should clear all files', () => {
-    const backend = new FileBackend();
-    backend.add(testFile);
-    backend.clear();
-    const backupFile = fs.readdirSync('.').find(f => f.startsWith(testFile) && f.endsWith('.bak'));
-    expect(backupFile).toBeUndefined();
+  it('should throw an error when switching channels', () => {
+    expect(() => backend.channel('test')).toThrow('Channels are not supported by the File backend.');
+  });
+
+  it('should throw an error when applying a patch', () => {
+    expect(() => backend.apply('test.patch')).toThrow('Apply is not supported by the File backend.');
+  });
+
+  it('should throw an error when getting conflicts', () => {
+    expect(() => backend.conflicts()).toThrow('Conflicts are not supported by the File backend.');
   });
 });

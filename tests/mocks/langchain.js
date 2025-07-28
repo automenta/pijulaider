@@ -1,7 +1,14 @@
 module.exports = {
-  OpenAI: jest.fn().mockImplementation(() => ({})),
+  OpenAI: class {},
+  ChatOpenAI: class {},
   ChatPromptTemplate: {
-    fromTemplate: jest.fn(),
+    fromTemplate: () => ({
+      pipe: () => ({
+        pipe: () => ({
+          invoke: () => Promise.resolve(''),
+        }),
+      }),
+    }),
   },
-  StringOutputParser: jest.fn(),
+  StringOutputParser: class {},
 };

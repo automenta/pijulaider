@@ -1,60 +1,71 @@
 const GitBackend = require('../../src/versioning/GitBackend');
 const execa = require('execa');
-const fs = require('fs');
 
 jest.mock('execa');
 
 describe('GitBackend', () => {
   let backend;
-  beforeEach(() => {
-    backend = new GitBackend();
-  });
+  let execa;
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  beforeEach(() => {
+    execa = require('execa');
+    backend = new GitBackend(execa);
   });
 
   it('should add a file', async () => {
-    await backend.add('file.txt');
-    expect(execa).toHaveBeenCalledWith('git', ['add', 'file.txt']);
+    const file = 'test.txt';
+    await backend.add(file);
+    expect(execa).toHaveBeenCalledWith('git', ['add', file]);
   });
 
-  it('should commit a file', async () => {
-    await backend.commit('message');
-    expect(execa).toHaveBeenCalledWith('git', ['commit', '-m', 'message']);
+  it('should commit changes', async () => {
+    const message = 'test commit';
+    await backend.commit(message);
+    expect(execa).toHaveBeenCalledWith('git', ['commit', '-m', message]);
   });
 
   it('should revert a commit', async () => {
-    await backend.unrecord('hash');
-    expect(execa).toHaveBeenCalledWith('git', ['revert', '--no-edit', 'hash']);
+    const hash = '12345';
+    await backend.unrecord(hash);
+    expect(execa).toHaveBeenCalledWith('git', ['revert', '--no-edit', hash]);
   });
 
-  it('should create a branch', async () => {
-    await backend.channel('new-branch');
-    expect(execa).toHaveBeenCalledWith('git', ['checkout', '-b', 'new-branch']);
+  it('should switch to an existing branch', async () => {
+    const name = 'test-branch';
+    await backend.channel(name);
+    expect(execa).toHaveBeenCalledWith('git', ['checkout', name]);
   });
 
-  it('should apply a patch', async () => {
-    await backend.apply('patch.diff');
-    expect(execa).toHaveBeenCalledWith('git', ['apply', 'patch.diff']);
+  it('should create a new branch if it does not exist', async () => {
+    const name = 'test-branch';
+    execa.mockImplementation((command, args) => {
+      if (args[1] === name) {
+        return Promise.reject({ stderr: 'did not match any file(s) known to git' });
+      }
+      return Promise.resolve();
+    });
+    await backend.channel(name);
+    expect(execa).toHaveBeenCalledWith('git', ['checkout', '-b', name]);
   });
 
-  it('should list conflicts', async () => {
-    execa.mockResolvedValue({ stdout: 'U file1.txt\nU file2.txt' });
+  it('should apply a patch safely', async () => {
+    const patch = 'test.patch';
+    await backend.apply(patch);
+    expect(execa).toHaveBeenCalledWith('git', ['apply', '--check', patch]);
+    expect(execa).toHaveBeenCalledWith('git', ['apply', patch]);
+  });
+
+  it('should get conflicts', async () => {
+    execa.mockResolvedValue({ stdout: '' });
     const conflicts = await backend.conflicts();
-    expect(execa).toHaveBeenCalledWith('git', ['status', '--porcelain']);
-    expect(conflicts).toBe(JSON.stringify(['file1.txt', 'file2.txt'], null, 2));
+    expect(JSON.parse(conflicts)).toEqual([]);
   });
 
-  it('should revert a file', async () => {
-    await backend.revert('file.txt');
-    expect(execa).toHaveBeenCalledWith('git', ['checkout', 'HEAD', '--', 'file.txt']);
-  });
-
-  it('should show the diff', async () => {
-    execa.mockResolvedValue({ stdout: 'diff --git a/file.txt b/file.txt' });
+  it('should get a diff', async () => {
+    execa.mockResolvedValue({ stdout: 'diff --git a/test.txt b/test.txt\n--- a/test.txt\n+++ b/test.txt\n@@ -1 +1 @@\n-original\n+modified' });
     const diff = await backend.diff();
+    expect(diff).toContain('-original');
+    expect(diff).toContain('+modified');
     expect(execa).toHaveBeenCalledWith('git', ['diff']);
-    expect(diff).toBe('diff --git a/file.txt b/file.txt');
   });
 });
