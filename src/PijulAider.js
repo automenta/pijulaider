@@ -11,31 +11,48 @@ const Chat = require('./tui/Chat');
 const { editFile } = require('edit-file');
 const inquirer = require('inquirer');
 const { parseDiff, applyDiff } = require('./diffUtils');
+const fs = require('fs').promises;
+
+const { execa: defaultExeca } = require('execa');
 
 class PijulAider {
-  constructor(options) {
+  constructor(options, execa = defaultExeca) {
     this.options = options;
     this.llm = new ChatOpenAI({ modelName: options.model });
+    this.execa = execa;
     this.prompt = ChatPromptTemplate.fromTemplate(
-      'You are a helpful AI assistant that helps with coding.'
+      `You are a helpful AI assistant that helps with coding.
+
+Here is the current codebase:
+{codebase}
+
+Here is the current diff:
+{diff}
+
+Here is the output of the last command:
+{lastCommandOutput}
+
+Here is the user's query:
+{input}`
     );
     this.outputParser = new StringOutputParser();
     this.chain = this.prompt.pipe(this.llm).pipe(this.outputParser);
     this.backend = null;
     this.messages = [];
     this.diff = '';
+    this.codebase = '';
   }
 
   async detectBackend() {
     try {
-      await execa('pijul', ['status']);
+      await this.execa('pijul', ['status']);
       return 'pijul';
     } catch (error) {
       // Not a pijul repository
     }
 
     try {
-      await execa('git', ['rev-parse', '--is-inside-work-tree']);
+      await this.execa('git', ['rev-parse', '--is-inside-work-tree']);
       return 'git';
     } catch (error) {
       // Not a git repository
@@ -47,7 +64,7 @@ class PijulAider {
   async migrate(from, to) {
     if (from === 'git' && to === 'pijul') {
       try {
-        await execa('pijul-git', ['--version']);
+        await this.execa('pijul-git', ['--version']);
       } catch (error) {
         console.log('pijul-git is not installed. Please install it by running `cargo install pijul-git`.');
         return;
@@ -55,7 +72,7 @@ class PijulAider {
 
       try {
         console.log('Importing Git repository to Pijul...');
-        await execa('pijul-git', ['import']);
+        await this.execa('pijul-git', ['import']);
         console.log('Migration successful.');
       } catch (error) {
         console.error('Error migrating from Git to Pijul:', error);
@@ -63,7 +80,7 @@ class PijulAider {
     } else if (from === 'file' && to === 'pijul') {
       try {
         console.log('Initializing Pijul repository...');
-        await execa('pijul', ['init']);
+        await this.execa('pijul', ['init']);
         console.log('Pijul repository initialized.');
       } catch (error) {
         console.error('Error initializing Pijul repository:', error);
@@ -76,17 +93,18 @@ class PijulAider {
   createBackend(backend) {
     switch (backend) {
       case 'file':
-        return new FileBackend();
+        return new FileBackend(this.execa);
       case 'git':
-        return new GitBackend();
+        return new GitBackend(this.execa);
       case 'pijul':
-        return new PijulBackend();
+        return new PijulBackend(this.execa);
       default:
         throw new Error(`Unknown backend: ${backend}`);
     }
   }
 
-  async run(files) {
+  async run(files, globFn) {
+    const { glob } = globFn ? { glob: globFn } : require('glob');
     const currentBackend = await this.detectBackend();
     if (currentBackend !== 'pijul' && !this.options.backend) {
       const { switchToPijul } = await inquirer.prompt([
@@ -108,13 +126,20 @@ class PijulAider {
       this.backend = this.createBackend(this.options.backend || currentBackend);
     }
 
-    for (const file of files) {
+    const allFiles = files.length > 0 ? files : await glob('**/*', { nodir: true });
+    for (const file of allFiles) {
       this.backend.add(file);
+      try {
+        const content = await fs.readFile(file, 'utf-8');
+        this.codebase += `--- ${file} ---\n${content}\n\n`;
+      } catch (error) {
+        // Ignore files that can't be read
+      }
     }
 
     this.diff = await this.backend.diff();
 
-    const onSendMessage = async (query) => {
+    this.onSendMessage = async (query) => {
       this.messages.push({ sender: 'user', text: query });
 
       if (query.startsWith('/')) {
@@ -180,6 +205,44 @@ class PijulAider {
               this.messages.push({ sender: 'system', text: 'This backend does not support conflicts.' });
             }
             break;
+          case 'test':
+            try {
+              await this.execa('npm', ['test']);
+              this.messages.push({ sender: 'system', text: 'All tests passed!' });
+            } catch (error) {
+              this.messages.push({
+                sender: 'system',
+                text: `Tests failed. Attempting to fix...\n${error.stdout}`,
+              });
+              const response = await this.chain.invoke({
+                input: `The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`,
+                chat_history: this.messages,
+                codebase: this.codebase,
+              });
+              this.messages.push({ sender: 'ai', text: response });
+              const parsedDiff = parseDiff(response);
+              if (parsedDiff) {
+                try {
+                  await applyDiff(parsedDiff);
+                  this.diff = await this.backend.diff();
+                  if (this.options.autoCommit) {
+                    await this.backend.record('Auto-commit');
+                  }
+                } catch (error) {
+                  this.messages.push({
+                    sender: 'system',
+                    text: 'Error applying diff. Please check the diff and try again.',
+                  });
+                }
+              }
+            }
+            break;
+          case 'image':
+            this.messages.push({
+              sender: 'system',
+              text: 'Please provide the path to the image:',
+            });
+            break;
           case 'help':
             this.messages.push({
               sender: 'system',
@@ -192,6 +255,8 @@ Available commands:
 /channel <name> - Switch to a channel (Pijul) or create a branch (Git)
 /apply <patch> - Apply a patch
 /conflicts - List conflicts
+/test - Run the test suite
+/image - Add an image to the conversation
 /help - Show this help message
               `,
             });
@@ -200,23 +265,37 @@ Available commands:
             this.messages.push({ sender: 'system', text: `Unknown command: ${command}` });
         }
       } else {
-        const response = await this.chain.invoke({
-          input: query,
-          chat_history: this.messages,
-        });
-        this.messages.push({ sender: 'ai', text: response });
+        try {
+          const lastCommandOutput = this.messages.length > 0 ? this.messages[this.messages.length - 1].text : '';
+          const response = await this.chain.invoke({
+            input: query,
+            chat_history: this.messages,
+            codebase: this.codebase,
+            diff: this.diff,
+            lastCommandOutput,
+          });
+          this.messages.push({ sender: 'ai', text: response });
 
-        const parsedDiff = parseDiff(response);
-        if (parsedDiff) {
-          try {
-            await applyDiff(parsedDiff);
-            this.diff = await this.backend.diff();
-          } catch (error) {
-            this.messages.push({
-              sender: 'system',
-              text: 'Error applying diff. Please check the diff and try again.',
-            });
+          const parsedDiff = parseDiff(response);
+          if (parsedDiff) {
+            try {
+              await applyDiff(parsedDiff);
+              this.diff = await this.backend.diff();
+              if (this.options.autoCommit) {
+                await this.backend.record('Auto-commit');
+              }
+            } catch (error) {
+              this.messages.push({
+                sender: 'system',
+                text: `Error applying diff: ${error.message}`,
+              });
+            }
           }
+        } catch (error) {
+          this.messages.push({
+            sender: 'system',
+            text: `Error invoking LLM: ${error.message}`,
+          });
         }
       }
       this.rerender();
@@ -225,7 +304,7 @@ Available commands:
     const App = () => (
       <Chat
         messages={this.messages}
-        onSendMessage={onSendMessage}
+        onSendMessage={this.onSendMessage}
         diff={this.diff}
       />
     );
@@ -235,6 +314,10 @@ Available commands:
     };
 
     this.rerender();
+  }
+
+  getOnSendMessage() {
+    return this.onSendMessage;
   }
 }
 

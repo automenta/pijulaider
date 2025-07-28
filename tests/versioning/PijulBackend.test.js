@@ -47,4 +47,10 @@ describe('PijulBackend', () => {
     expect(diff).toContain('+modified');
     expect(execa).toHaveBeenCalledWith('pijul', ['diff']);
   });
+
+  it('should revert a file', async () => {
+    const file = 'test.txt';
+    await backend.revert(file);
+    expect(execa).toHaveBeenCalledWith('pijul', ['reset', file]);
+  });
 });

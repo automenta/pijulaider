@@ -4,9 +4,10 @@ const execa = require('execa');
 const VersioningBackend = require('./VersioningBackend');
 
 class FileBackend extends VersioningBackend {
-  constructor() {
+  constructor(execa) {
     super();
     this.files = new Map();
+    this.execa = execa;
   }
 
   async add(file) {
@@ -80,7 +81,7 @@ class FileBackend extends VersioningBackend {
     let diff = '';
     for (const [file, backupFile] of this.files) {
       try {
-        const { stdout } = await execa('diff', ['-u', backupFile, file], { reject: false });
+        const { stdout } = await this.execa('diff', ['-u', backupFile, file], { reject: false });
         diff += stdout;
       } catch (error) {
         console.error(`Error getting diff for file ${file}:`, error);

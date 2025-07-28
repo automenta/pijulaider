@@ -1,23 +1,14 @@
 const React = require('react');
 const { Box, Text } = require('ink');
+const { default: SyntaxHighlighter } = require('react-syntax-highlighter');
+const { docco } = require('react-syntax-highlighter/dist/cjs/styles/hljs');
 
 const DiffView = ({ diff }) => {
-  const lines = diff.split('\n');
   return (
     <Box flexDirection="column">
-      {lines.map((line, i) => {
-        let color = 'white';
-        if (line.startsWith('+')) {
-          color = 'green';
-        } else if (line.startsWith('-')) {
-          color = 'red';
-        }
-        return (
-          <Text key={i} color={color}>
-            {line}
-          </Text>
-        );
-      })}
+      <SyntaxHighlighter language="diff" style={docco}>
+        {diff}
+      </SyntaxHighlighter>
     </Box>
   );
 };

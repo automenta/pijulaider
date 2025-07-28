@@ -2,9 +2,14 @@ const execa = require('execa');
 const VersioningBackend = require('./VersioningBackend');
 
 class PijulBackend extends VersioningBackend {
+  constructor(execa) {
+    super();
+    this.execa = execa;
+  }
+
   async add(file) {
     try {
-      await execa('pijul', ['add', file]);
+      await this.execa('pijul', ['add', file]);
     } catch (error) {
       console.error(`Error adding file ${file} to Pijul:`, error);
     }
@@ -12,7 +17,7 @@ class PijulBackend extends VersioningBackend {
 
   async record(message) {
     try {
-      await execa('pijul', ['record', '-m', message]);
+      await this.execa('pijul', ['record', '-m', message]);
     } catch (error) {
       console.error('Error recording changes in Pijul:', error);
     }
@@ -20,7 +25,7 @@ class PijulBackend extends VersioningBackend {
 
   async unrecord(hash) {
     try {
-      await execa('pijul', ['unrecord', hash]);
+      await this.execa('pijul', ['unrecord', hash]);
     } catch (error) {
       console.error(`Error unrecording change ${hash} in Pijul:`, error);
     }
@@ -28,7 +33,7 @@ class PijulBackend extends VersioningBackend {
 
   async diff() {
     try {
-      const { stdout } = await execa('pijul', ['diff']);
+      const { stdout } = await this.execa('pijul', ['diff']);
       return stdout;
     } catch (error) {
       console.error('Error gettings diff from Pijul:', error);
@@ -38,7 +43,7 @@ class PijulBackend extends VersioningBackend {
 
   async channel(name) {
     try {
-      await execa('pijul', ['channel', 'switch', name]);
+      await this.execa('pijul', ['channel', 'switch', name]);
     } catch (error) {
       console.error(`Error switching to channel ${name} in Pijul:`, error);
     }
@@ -46,7 +51,7 @@ class PijulBackend extends VersioningBackend {
 
   async patch(name) {
     try {
-      await execa('pijul', ['patch', 'add', name]);
+      await this.execa('pijul', ['patch', 'add', name]);
     } catch (error) {
       console.error(`Error creating patch ${name} in Pijul:`, error);
     }
@@ -54,7 +59,7 @@ class PijulBackend extends VersioningBackend {
 
   async apply(patch) {
     try {
-      await execa('pijul', ['apply', patch]);
+      await this.execa('pijul', ['apply', patch]);
     } catch (error) {
       console.error(`Error applying patch ${patch} in Pijul:`, error);
     }
@@ -62,7 +67,7 @@ class PijulBackend extends VersioningBackend {
 
   async conflicts() {
     try {
-      const { stdout } = await execa('pijul', ['credit']);
+      const { stdout } = await this.execa('pijul', ['credit']);
       const conflicts = stdout
         .split('\n')
         .filter((line) => line.startsWith('C'))
@@ -78,6 +83,14 @@ class PijulBackend extends VersioningBackend {
     } catch (error) {
       console.error('Error getting conflicts from Pijul:', error);
       return '';
+    }
+  }
+
+  async revert(file) {
+    try {
+      await this.execa('pijul', ['reset', file]);
+    } catch (error) {
+      console.error(`Error reverting file ${file} in Pijul:`, error);
     }
   }
 }

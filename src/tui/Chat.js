@@ -1,8 +1,8 @@
 const React = require('react');
-const { Box, Text, Newline } = require('ink');
+const { Box, Text } = require('ink');
 const TextInput = require('ink-text-input').default;
+const SelectInput = require('ink-select-input').default;
 const Mic = require('node-microphone');
-const FilePicker = require('file-picker');
 const DiffView = require('./DiffView');
 
 const Chat = ({ messages, onSendMessage, diff }) => {
@@ -30,31 +30,18 @@ const Chat = ({ messages, onSendMessage, diff }) => {
   };
 
   const handleImageClick = () => {
-    FilePicker.pick(
-      {
-        picker: 'all',
-        path: '/',
-      },
-      (file) => {
-        // TODO: Handle the selected image
-        // For now, we'll just log the file path
-        console.log('Selected image:', file.path);
-        this.messages.push({ sender: 'user', text: `Selected image: ${file.path}` });
-      }
-    );
+    onSendMessage('/image');
   };
+
+  const items = messages.map((message, i) => ({
+    label: `${message.sender}: ${message.text}`,
+    value: i,
+  }));
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1}>
       <Box flexDirection="column" flexGrow={1} marginBottom={1}>
-        {messages.map((message, i) => (
-          <Box key={i}>
-            <Text color={message.sender === 'user' ? 'green' : 'blue'}>
-              {message.sender}:{' '}
-            </Text>
-            <Text>{message.text}</Text>
-          </Box>
-        ))}
+        <SelectInput items={items} />
       </Box>
       {diff && (
         <Box flexDirection="column" borderStyle="round" borderColor="gray" padding={1} marginBottom={1}>

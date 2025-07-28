@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/automenta/pijulaider#readme",
   "dependencies": {
+    "@babel/plugin-syntax-top-level-await": "^7.14.5",
     "@langchain/core": "^0.3.66",
     "@langchain/openai": "^0.6.3",
     "apply-diff": "^1.2.5",
@@ -38,19 +39,23 @@
     "edit-file": "^0.3.0",
     "execa": "^5.1.1",
     "file-picker": "^0.1.8",
+    "glob": "^11.0.3",
     "ink": "^6.1.0",
+    "ink-select-input": "^6.2.0",
+    "ink-testing-library": "^4.0.0",
     "ink-text-input": "^6.0.0",
     "inquirer": "^12.8.2",
     "langchain": "^0.3.30",
     "node-microphone": "^0.1.6",
-    "react": "^19.1.0"
+    "react": "^19.1.0",
+    "react-syntax-highlighter": "^15.6.1"
   },
   "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.28.0",
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
+    "@babel/runtime": "^7.28.0",
     "babel-jest": "^30.0.5",
-    "jest": "^30.0.5",
-    "@babel/plugin-transform-runtime": "^7.28.0",
-    "@babel/runtime": "^7.28.0"
+    "jest": "^30.0.5"
   }
 }
