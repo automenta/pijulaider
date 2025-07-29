@@ -20,8 +20,20 @@ class PijulBackend extends VersioningBackend {
   }
 
   async status() {
-    const { stdout } = await runCommand('pijul', ['status']);
-    return stdout;
+    const { stdout: channel } = await runCommand('pijul', ['channel']);
+    const currentChannel = channel.split('\n').find(line => line.startsWith('*')).substring(1).trim();
+    const { stdout: status } = await runCommand('pijul', ['status', '--porcelain']);
+    const files = status.split('\n').filter(line => line.trim() !== '').map(line => {
+        const parts = line.trim().split(' ');
+        return {
+            status: parts[0],
+            file: parts.slice(1).join(' '),
+        };
+    });
+    return JSON.stringify({
+        channel: currentChannel,
+        files,
+    }, null, 2);
   }
 
   async channel(subcommand, name) {
@@ -66,6 +78,10 @@ class PijulBackend extends VersioningBackend {
 
   async revert(file) {
     await runCommand('pijul', ['reset', file]);
+  }
+
+  async revertAll() {
+    await runCommand('pijul', ['reset']);
   }
 
   async undo() {

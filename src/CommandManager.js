@@ -10,13 +10,15 @@ class CommandManager {
 
   loadCommands() {
     const commandsPath = path.join(__dirname, 'commands');
-    fs.readdirSync(commandsPath).forEach((file) => {
-      if (file.endsWith('.js') && file !== 'index.js') {
-        const commandName = file.slice(0, -3);
+    const commandFiles = fs.readdirSync(commandsPath);
+
+    for (const file of commandFiles) {
+      if (file.endsWith('.js')) {
+        const commandName = path.basename(file, '.js');
         const CommandClass = require(path.join(commandsPath, file));
         this.commands[commandName] = new CommandClass(this.dependencies);
       }
-    });
+    }
   }
 
   async handleCommand(command, args) {

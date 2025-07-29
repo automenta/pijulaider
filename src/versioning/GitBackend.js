@@ -58,14 +58,29 @@ class GitBackend extends VersioningBackend {
     await runCommand('git', ['checkout', 'HEAD', '--', file]);
   }
 
+  async revertAll() {
+    await runCommand('git', ['reset', '--hard', 'HEAD']);
+  }
+
   async diff() {
     const { stdout } = await runCommand('git', ['diff']);
     return stdout;
   }
 
   async status() {
-    const { stdout } = await runCommand('git', ['status']);
-    return stdout;
+    const { stdout: branch } = await runCommand('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const { stdout: status } = await runCommand('git', ['status', '--porcelain']);
+    const files = status.split('\n').filter(line => line.trim() !== '').map(line => {
+      const parts = line.trim().split(' ');
+      return {
+        status: parts[0],
+        file: parts.slice(1).join(' '),
+      };
+    });
+    return JSON.stringify({
+      branch: branch.trim(),
+      files,
+    }, null, 2);
   }
 
   async undo() {

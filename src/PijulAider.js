@@ -8,10 +8,16 @@ class PijulAider {
     this.fileManager = container.get('fileManager');
     this.llmChain = container.get('llmChain');
     this.backendManager = container.get('backendManager');
+    this.terminal = null;
   }
 
   async onSendMessage(query) {
     this.messageHandler.addMessage({ sender: 'user', text: query });
+
+    if (this.terminal) {
+      this.terminal.write(query + '\r');
+      return;
+    }
 
     if (query.startsWith('/')) {
       const [command, ...args] = query.slice(1).split(' ');

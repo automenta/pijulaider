@@ -8,19 +8,12 @@ class LsCommand {
 
   async execute(args) {
     const { addMessage } = this.dependencies;
-    const targetPath = args[0] || '.';
+    const dir = args[0] || '.';
     try {
-      const files = fs.readdirSync(targetPath);
-      let fileList = '';
-      for (const file of files) {
-        const filePath = path.join(targetPath, file);
-        const stats = fs.statSync(filePath);
-        if (stats.isDirectory()) {
-          fileList += `${file}/\n`;
-        } else {
-          fileList += `${file}\n`;
-        }
-      }
+      const files = await fs.promises.readdir(dir, { withFileTypes: true });
+      const fileList = files.map(file => {
+        return file.isDirectory() ? `${file.name}/` : file.name;
+      }).join('\n');
       addMessage({ sender: 'system', text: fileList });
     } catch (error) {
       addMessage({ sender: 'system', text: `Error: ${error.message}` });

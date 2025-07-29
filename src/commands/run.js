@@ -1,14 +1,27 @@
+const Terminal = require('../tui/Terminal');
+
 class RunCommand {
   constructor(dependencies) {
     this.dependencies = dependencies;
   }
 
   async execute(args) {
-    const { execa, addMessage } = this.dependencies;
-    const command = args[0];
-    const commandArgs = args.slice(1);
-    const { stdout } = await execa(command, commandArgs);
-    addMessage({ sender: 'system', text: `\`/${command} ${args.join(' ')}\`\n${stdout}` });
+    const { addMessage, setTerminal, getTerminal } = this.dependencies;
+
+    if (getTerminal()) {
+      getTerminal().write(args.join(' ') + '\r');
+      return;
+    }
+
+    const terminal = new Terminal((data) => {
+      addMessage({ sender: 'system', text: data });
+    });
+
+    setTerminal(terminal);
+
+    if (args.length > 0) {
+      terminal.write(args.join(' ') + '\r');
+    }
   }
 }
 

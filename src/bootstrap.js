@@ -62,6 +62,11 @@ function bootstrap(options) {
       setCodebase: (codebase) => c.get('fileManager').setCodebase(codebase),
       handleSpeech: () => c.get('aider').handleSpeech(),
       handleQuery: (query) => c.get('aider').handleQuery(query),
+      getTerminal: () => c.get('aider').terminal,
+      setTerminal: (terminal) => {
+        const aider = c.get('aider');
+        aider.terminal = terminal;
+      },
     };
     return new CommandManager(dependencies);
   });

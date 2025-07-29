@@ -3,13 +3,21 @@ class UndoCommand {
     this.dependencies = dependencies;
   }
 
-  async execute() {
+  async execute(args) {
     const { getBackend, addMessage, setDiff } = this.dependencies;
     const backend = getBackend();
-    await backend.undo();
+    const file = args[0];
+
+    if (file) {
+      await backend.revert(file);
+      addMessage({ sender: 'system', text: `Reverted changes to ${file}.` });
+    } else {
+      await backend.revertAll();
+      addMessage({ sender: 'system', text: 'Reverted all changes.' });
+    }
+
     const diff = await backend.diff();
     setDiff(diff);
-    addMessage({ sender: 'system', text: 'Undid the last change.' });
   }
 }
 
