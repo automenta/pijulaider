@@ -1,5 +1,4 @@
 const React = require('react');
-const { render } = require('ink');
 const Chat = require('./tui/Chat');
 
 class UIManager {
@@ -8,9 +7,13 @@ class UIManager {
     this.onSendMessage = onSendMessage;
     this.getDiff = getDiff;
     this.rerender = null;
+    this.render = null;
   }
 
-  start(messages) {
+  async start(messages) {
+    const { render } = await import('ink');
+    this.render = render;
+
     const App = () => (
       <Chat
         messages={messages}
@@ -20,7 +23,7 @@ class UIManager {
     );
 
     this.rerender = () => {
-      render(React.createElement(App));
+      this.render(React.createElement(App));
     };
 
     this.rerender();

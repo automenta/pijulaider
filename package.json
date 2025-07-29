@@ -2,15 +2,17 @@
   "name": "pijulaider",
   "version": "0.0.1",
   "description": "A terminal-based AI pair programming tool for LLM-driven code editing, feature generation, bug fixing, and change management.",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "bin": {
-    "pijulaider": "src/index.js"
+    "pijulaider": "dist/index.js"
   },
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "jest"
+    "test": "jest --testTimeout 2000 --detectOpenHandles",
+    "start": "node dist/index.js",
+    "build": "esbuild ./src --outdir=dist --loader:.js=jsx --format=cjs --platform=node --allow-overwrite"
   },
   "repository": {
     "type": "git",
@@ -57,17 +59,12 @@
     "react-syntax-highlighter": "^15.6.1"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-proposal-private-methods": "^7.18.6",
-    "@babel/plugin-transform-class-properties": "^7.27.1",
-    "@babel/plugin-transform-modules-commonjs": "^7.27.1",
-    "@babel/plugin-transform-private-methods": "^7.27.1",
-    "@babel/plugin-transform-runtime": "^7.28.0",
-    "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
     "@babel/runtime": "^7.28.2",
-    "@testing-library/react": "^16.3.0",
     "babel-jest": "^30.0.5",
+    "esbuild": "^0.25.8",
+    "esbuild-jest": "^0.5.0",
+    "esbuild-register": "^3.6.0",
     "jest": "^30.0.5"
   },
   "resolutions": {

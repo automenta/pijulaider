@@ -31,7 +31,7 @@ jest.mock('../src/CommandManager');
 jest.mock('../src/LLMChain');
 jest.mock('../src/FileManager');
 jest.mock('../src/MessageHandler');
-jest.mock('glob', () => require('./mocks/glob'));
+jest.mock('glob', () => ({ glob: jest.fn().mockResolvedValue([]) }));
 
 describe('PijulAider', () => {
   let container;

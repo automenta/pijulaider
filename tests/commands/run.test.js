@@ -1,11 +1,16 @@
 const RunCommand = require('../../src/commands/run');
-const Terminal = require('../../src/tui/Terminal');
+const pty = require('node-pty');
 
-jest.mock('../../src/tui/Terminal');
+jest.mock('node-pty', () => ({
+  spawn: jest.fn(() => ({
+    on: jest.fn(),
+    write: jest.fn(),
+  })),
+}));
 
 describe('RunCommand', () => {
   beforeEach(() => {
-    Terminal.mockClear();
+    pty.spawn.mockClear();
   });
 
   it('should create a new terminal if one does not exist', async () => {
@@ -16,7 +21,7 @@ describe('RunCommand', () => {
     };
     const runCommand = new RunCommand(dependencies);
     await runCommand.execute(['ls']);
-    expect(Terminal).toHaveBeenCalledTimes(1);
+    expect(pty.spawn).toHaveBeenCalledTimes(1);
     expect(dependencies.setTerminal).toHaveBeenCalledTimes(1);
   });
 

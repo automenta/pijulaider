@@ -1,6 +1,6 @@
 module.exports = {
   transform: {
-    '^.+\\.js$': 'babel-jest',
+    '^.+\.(js|jsx)$': 'babel-jest',
   },
   moduleNameMapper: {
     '@langchain/openai': '<rootDir>/tests/mocks/langchain.js',
@@ -12,9 +12,16 @@ module.exports = {
     'ink': '<rootDir>/tests/mocks/ink.js',
     '../util': '<rootDir>/tests/mocks/util.js',
     'execa': '<rootDir>/tests/mocks/execa.js',
+    'glob': '<rootDir>/tests/mocks/glob.js',
   },
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '/src/commands/test.js',
+  ],
   transformIgnorePatterns: [
-    "node_modules/(?!(ink|ink-select-input|ink-testing-library|ink-text-input|react-reconciler|ansi-escapes|environment|is-in-ci|auto-bind|patch-console|@sindresorhus/is|escape-string-regexp|slice-ansi|chalk|get-stream|p-event|p-timeout|yocto-queue|@types/react|ink-gradient|ink-big-text|react-syntax-highlighter)/)",
+    "/node_modules/",
   ],
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
+  forceExit: true,
 };

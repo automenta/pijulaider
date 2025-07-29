@@ -56,7 +56,7 @@ class PijulAider {
       return;
     }
 
-    this.uiManager.start(this.messageHandler.getMessages());
+    await this.uiManager.start(this.messageHandler.getMessages());
   }
 
   async run(files, globFn) {
