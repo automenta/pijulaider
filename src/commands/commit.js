@@ -5,7 +5,7 @@ class CommitCommand {
 
   async execute(args) {
     const { getBackend, addMessage } = this.dependencies;
-    await getBackend().commit(args.join(' '));
+    await getBackend().record(args.join(' '));
     addMessage({ sender: 'system', text: 'Changes committed.' });
   }
 }

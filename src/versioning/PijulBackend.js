@@ -19,6 +19,11 @@ class PijulBackend extends VersioningBackend {
     return stdout;
   }
 
+  async status() {
+    const { stdout } = await runCommand('pijul', ['status']);
+    return stdout;
+  }
+
   async channel(subcommand, name) {
     if (subcommand === 'new') {
       await runCommand('pijul', ['channel', 'new', name]);

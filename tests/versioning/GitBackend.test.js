@@ -17,33 +17,30 @@ describe('GitBackend', () => {
     expect(runCommand).toHaveBeenCalledWith('git', ['add', file]);
   });
 
-  it('should commit changes', async () => {
+  it('should record changes', async () => {
     const message = 'test commit';
-    await backend.commit(message);
+    await backend.record(message);
     expect(runCommand).toHaveBeenCalledWith('git', ['commit', '-m', message]);
   });
 
-  it('should revert a commit', async () => {
-    const hash = '12345';
-    await backend.unrecord(hash);
-    expect(runCommand).toHaveBeenCalledWith('git', ['revert', '--no-edit', hash]);
+  it('should undo a commit', async () => {
+    await backend.unrecord();
+    expect(runCommand).toHaveBeenCalledWith('git', ['reset', 'HEAD~']);
   });
 
   it('should switch to an existing branch', async () => {
     const name = 'test-branch';
+    runCommand.mockResolvedValue({ stdout: name });
     await backend.channel('switch', name);
+    expect(runCommand).toHaveBeenCalledWith('git', ['branch', '--list', name]);
     expect(runCommand).toHaveBeenCalledWith('git', ['checkout', name]);
   });
 
   it('should create a new branch if it does not exist', async () => {
     const name = 'test-branch';
-    runCommand.mockImplementation((command, args) => {
-      if (args[0] === 'checkout' && args[1] === name) {
-        return Promise.reject({ message: 'did not match any file(s) known to git' });
-      }
-      return Promise.resolve({ stdout: '' });
-    });
+    runCommand.mockResolvedValue({ stdout: '' });
     await backend.channel('switch', name);
+    expect(runCommand).toHaveBeenCalledWith('git', ['branch', '--list', name]);
     expect(runCommand).toHaveBeenCalledWith('git', ['checkout', '-b', name]);
   });
 

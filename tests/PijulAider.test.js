@@ -7,6 +7,8 @@ const UIManager = require('../src/UIManager');
 const CommandManager = require('../src/CommandManager');
 const LLMChain = require('../src/LLMChain');
 const FileManager = require('../src/FileManager');
+
+jest.mock('react-syntax-highlighter', () => ({ children }) => <text>{children}</text>);
 const MessageHandler = require('../src/MessageHandler');
 const bootstrap = require('../src/bootstrap');
 

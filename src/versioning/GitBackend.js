@@ -6,30 +6,23 @@ class GitBackend extends VersioningBackend {
     await runCommand('git', ['add', file]);
   }
 
-  async commit(message) {
+  async record(message) {
     await runCommand('git', ['commit', '-m', message]);
   }
 
-  async record(message) {
-    return this.commit(message);
-  }
-
-  async unrecord(hash) {
-    await runCommand('git', ['revert', '--no-edit', hash]);
+  async unrecord() {
+    await runCommand('git', ['reset', 'HEAD~']);
   }
 
   async channel(subcommand, name) {
     if (subcommand === 'new') {
       await runCommand('git', ['checkout', '-b', name]);
     } else if (subcommand === 'switch') {
-      try {
+      const { stdout } = await runCommand('git', ['branch', '--list', name]);
+      if (stdout.trim() === '') {
+        await runCommand('git', ['checkout', '-b', name]);
+      } else {
         await runCommand('git', ['checkout', name]);
-      } catch (error) {
-        if (error.message.includes('did not match any file(s) known to git')) {
-          await runCommand('git', ['checkout', '-b', name]);
-        } else {
-          throw error;
-        }
       }
     } else if (subcommand === 'list') {
       const { stdout } = await runCommand('git', ['branch']);
@@ -76,7 +69,7 @@ class GitBackend extends VersioningBackend {
   }
 
   async undo() {
-    await this.unrecord('HEAD');
+    await this.unrecord();
   }
 }
 
