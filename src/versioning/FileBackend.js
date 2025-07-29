@@ -1,13 +1,12 @@
 const fs = require('fs').promises;
 const path = require('path');
-const execa = require('execa');
+const { runCommand } = require('../util');
 const VersioningBackend = require('./VersioningBackend');
 
 class FileBackend extends VersioningBackend {
-  constructor(execa) {
+  constructor() {
     super();
     this.files = new Map();
-    this.execa = execa;
   }
 
   async add(file) {
@@ -24,14 +23,10 @@ class FileBackend extends VersioningBackend {
   }
 
   async unstage(file) {
-    try {
-      const backupFile = this.files.get(file);
-      if (backupFile) {
-        await fs.unlink(backupFile);
-        this.files.delete(file);
-      }
-    } catch (error) {
-      console.error(`Error unstaging file ${file}:`, error);
+    const backupFile = this.files.get(file);
+    if (backupFile) {
+      await fs.unlink(backupFile);
+      this.files.delete(file);
     }
   }
 
@@ -60,13 +55,9 @@ class FileBackend extends VersioningBackend {
   }
 
   async revert(file) {
-    try {
-      const backupFile = this.files.get(file);
-      if (backupFile) {
-        await fs.copyFile(backupFile, file);
-      }
-    } catch (error) {
-      console.error(`Error reverting file ${file}:`, error);
+    const backupFile = this.files.get(file);
+    if (backupFile) {
+      await fs.copyFile(backupFile, file);
     }
   }
 
@@ -79,23 +70,15 @@ class FileBackend extends VersioningBackend {
   async diff() {
     const diffs = [];
     for (const [file, backupFile] of this.files) {
-      try {
-        const { stdout } = await this.execa('diff', ['-u', backupFile, file], { reject: false });
-        diffs.push(stdout);
-      } catch (error) {
-        console.error(`Error getting diff for file ${file}:`, error);
-      }
+      const { stdout } = await runCommand('diff', ['-u', backupFile, file], { reject: false });
+      diffs.push(stdout);
     }
     return diffs.join('\n');
   }
 
   async clear() {
     for (const backupFile of this.files.values()) {
-      try {
-        await fs.unlink(backupFile);
-      } catch (error) {
-        console.error(`Error clearing backups:`, error);
-      }
+      await fs.unlink(backupFile);
     }
     this.files.clear();
   }

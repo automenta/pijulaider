@@ -1,15 +1,15 @@
 const fs = require('fs').promises;
 const FileBackend = require('../../src/versioning/FileBackend');
-const execa = require('execa');
+const { runCommand } = require('../util');
 
-jest.mock('execa');
+jest.mock('../util');
 
 describe('FileBackend', () => {
   let backend;
 
   beforeEach(() => {
-    execa.mockClear();
-    backend = new FileBackend(execa);
+    runCommand.mockClear();
+    backend = new FileBackend();
   });
 
   it('should backup a file when adding it', async () => {
@@ -43,7 +43,7 @@ describe('FileBackend', () => {
     await fs.writeFile(backupFile, originalContent);
     await fs.writeFile(file, modifiedContent);
     backend.files.set(file, backupFile);
-    execa.mockResolvedValue({ stdout: 'diff --git a/test.txt b/test.txt\n--- a/test.txt\n+++ b/test.txt\n@@ -1 +1 @@\n-original\n+modified' });
+    runCommand.mockResolvedValue({ stdout: 'diff --git a/test.txt b/test.txt\n--- a/test.txt\n+++ b/test.txt\n@@ -1 +1 @@\n-original\n+modified' });
     const diff = await backend.diff();
     expect(diff).toContain('-original');
     expect(diff).toContain('+modified');

@@ -2,13 +2,13 @@ const PijulAider = require('../src/PijulAider');
 const FileBackend = require('../src/versioning/FileBackend');
 const GitBackend = require('../src/versioning/GitBackend');
 const PijulBackend = require('../src/versioning/PijulBackend');
-const inquirer = require('inquirer');
-const { parseDiff, applyDiff } = require('../src/diffUtils');
-const fs = require('fs').promises;
+const BackendManager = require('../src/BackendManager');
+const UIManager = require('../src/UIManager');
 const CommandManager = require('../src/CommandManager');
-const LLMManager = require('../src/LLMManager');
 const LLMChain = require('../src/LLMChain');
 const FileManager = require('../src/FileManager');
+const MessageHandler = require('../src/MessageHandler');
+const bootstrap = require('../src/bootstrap');
 
 jest.mock('inquirer', () => ({
   prompt: jest.fn(),
@@ -22,93 +22,95 @@ jest.mock('fs', () => ({
 jest.mock('../src/versioning/FileBackend');
 jest.mock('../src/versioning/GitBackend');
 jest.mock('../src/versioning/PijulBackend');
-jest.mock('../src/CommandManager');
 jest.mock('../src/LLMManager');
+jest.mock('../src/BackendManager');
+jest.mock('../src/UIManager');
+jest.mock('../src/CommandManager');
 jest.mock('../src/LLMChain');
 jest.mock('../src/FileManager');
+jest.mock('../src/MessageHandler');
 jest.mock('glob', () => require('./mocks/glob'));
 
 describe('PijulAider', () => {
+  let container;
   let aider;
-  let execa;
+  let backendManager;
+  let uiManager;
+  let commandManager;
+  let llmChain;
+  let fileManager;
+  let messageHandler;
 
   beforeEach(() => {
-    aider = new PijulAider({ provider: 'openai', model: 'gpt-4o' });
-    execa = aider.backendManager.execa = jest.fn();
-    aider.uiManager.onSendMessage = jest.fn();
+    container = bootstrap({ provider: 'openai', model: 'gpt-4o' });
+    backendManager = new BackendManager();
+    container.register('backendManager', backendManager);
+    uiManager = new UIManager();
+    uiManager.onSendMessage = jest.fn();
+    container.register('uiManager', uiManager);
+    commandManager = new CommandManager();
+    commandManager.handleCommand = jest.fn();
+    container.register('commandManager', commandManager);
+    llmChain = new LLMChain();
+    llmChain.handleQuery = jest.fn();
+    container.register('llmChain', llmChain);
+    fileManager = new FileManager();
+    fileManager.loadFiles = jest.fn();
+    fileManager.getCodebase = jest.fn();
+    container.register('fileManager', fileManager);
+    messageHandler = new MessageHandler();
+    messageHandler.getMessages = jest.fn();
+    messageHandler.addMessage = jest.fn();
+    container.register('messageHandler', messageHandler);
+    container.register('diff', '');
+    aider = new PijulAider(container);
     jest.clearAllMocks();
   });
 
   describe('initialize', () => {
     it('should create a file backend by default', async () => {
-      execa.mockRejectedValue(new Error());
-      inquirer.prompt.mockResolvedValue({ switchToPijul: false });
-      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new FileBackend());
+      jest.spyOn(backendManager, 'initialize').mockResolvedValue(new FileBackend());
       await aider.initialize();
-      expect(aider.backend).toBeInstanceOf(FileBackend);
+      expect(container.get('backend')).toBeInstanceOf(FileBackend);
     });
 
     it('should create a git backend when git is detected', async () => {
-      execa.mockImplementation((command) => {
-        if (command === 'pijul') return Promise.reject(new Error());
-        if (command === 'git') return Promise.resolve({ stdout: 'true' });
-        return Promise.resolve();
-      });
-      inquirer.prompt.mockResolvedValue({ switchToPijul: false });
-      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new GitBackend());
+      jest.spyOn(backendManager, 'initialize').mockResolvedValue(new GitBackend());
       await aider.initialize();
-      expect(aider.backend).toBeInstanceOf(GitBackend);
+      expect(container.get('backend')).toBeInstanceOf(GitBackend);
     });
 
     it('should create a pijul backend when pijul is detected', async () => {
-      execa.mockResolvedValue({ stdout: 'pijul version 1.0.0' });
-      inquirer.prompt.mockResolvedValue({ switchToPijul: false });
-      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new PijulBackend());
+      jest.spyOn(backendManager, 'initialize').mockResolvedValue(new PijulBackend());
       await aider.initialize();
-      expect(aider.backend).toBeInstanceOf(PijulBackend);
-    });
-
-    it('should prompt to switch to pijul', async () => {
-      execa.mockRejectedValue(new Error());
-      inquirer.prompt.mockResolvedValue({ switchToPijul: true });
-      const migrate = jest.spyOn(aider.backendManager, 'migrate').mockResolvedValue();
-      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new PijulBackend());
-      await aider.initialize();
-      expect(inquirer.prompt).toHaveBeenCalled();
-      expect(migrate).toHaveBeenCalledWith('file', 'pijul');
+      expect(container.get('backend')).toBeInstanceOf(PijulBackend);
     });
   });
 
   describe('start', () => {
     it('should load files into the codebase', async () => {
       jest.spyOn(aider, 'initialize').mockResolvedValue();
-      aider.backend = new FileBackend();
-      const fileManager = new FileManager(aider.backend, aider.messageHandler);
-      aider.fileManager = fileManager;
-      const loadFiles = jest.spyOn(fileManager, 'loadFiles').mockResolvedValue();
+      container.register('backend', { diff: () => Promise.resolve('') });
       await aider.start([]);
-      expect(loadFiles).toHaveBeenCalled();
+      expect(fileManager.loadFiles).toHaveBeenCalled();
     });
   });
 
-
   describe('onSendMessage', () => {
     it('should delegate to the command manager', async () => {
-      const handleCommand = jest.spyOn(aider.commandManager, 'handleCommand').mockResolvedValue();
       await aider.onSendMessage('/add file.js');
-      expect(handleCommand).toHaveBeenCalledWith('add', ['file.js']);
+      expect(commandManager.handleCommand).toHaveBeenCalledWith('add', ['file.js']);
     });
   });
 
   describe('handleQuery', () => {
     it('should call the LLM and apply the diff', async () => {
-      aider.llmChain = new LLMChain();
-      const handleQuery = jest.spyOn(aider.llmChain, 'handleQuery').mockResolvedValue('some diff');
-      aider.fileManager = new FileManager();
-      jest.spyOn(aider.fileManager, 'getCodebase').mockReturnValue('some codebase');
+      llmChain.handleQuery.mockResolvedValue('some diff');
+      fileManager.getCodebase.mockReturnValue('some codebase');
+      container.register('diff', 'old diff');
       await aider.handleQuery('test query');
-      expect(handleQuery).toHaveBeenCalledWith('test query', 'some codebase', '');
-      expect(aider.diff).toBe('some diff');
+      expect(llmChain.handleQuery).toHaveBeenCalledWith('test query', 'some codebase', 'old diff');
+      expect(container.get('diff')).toBe('some diff');
     });
   });
 });

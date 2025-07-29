@@ -1,122 +1,73 @@
-const execa = require('execa');
+const { runCommand } = require('../util');
 const VersioningBackend = require('./VersioningBackend');
 
 class PijulBackend extends VersioningBackend {
-  constructor(execa) {
-    super();
-    this.execa = execa;
-  }
-
   async add(file) {
-    try {
-      await this.execa('pijul', ['add', file]);
-    } catch (error) {
-      console.error(`Error adding file ${file} to Pijul:`, error);
-    }
+    await runCommand('pijul', ['add', file]);
   }
 
   async record(message) {
-    try {
-      await this.execa('pijul', ['record', '-m', message]);
-    } catch (error) {
-      console.error('Error recording changes in Pijul:', error);
-    }
+    await runCommand('pijul', ['record', '-m', message]);
   }
 
   async unrecord(hash) {
-    try {
-      await this.execa('pijul', ['unrecord', hash]);
-    } catch (error) {
-      console.error(`Error unrecording change ${hash} in Pijul:`, error);
-    }
+    await runCommand('pijul', ['unrecord', hash]);
   }
 
   async diff() {
-    try {
-      const { stdout } = await this.execa('pijul', ['diff']);
-      return stdout;
-    } catch (error) {
-      console.error('Error gettings diff from Pijul:', error);
-      return '';
-    }
+    const { stdout } = await runCommand('pijul', ['diff']);
+    return stdout;
   }
 
   async channel(subcommand, name) {
-    try {
-      if (subcommand === 'new') {
-        await this.execa('pijul', ['channel', 'new', name]);
-      } else if (subcommand === 'switch') {
-        await this.execa('pijul', ['channel', 'switch', name]);
-      } else if (subcommand === 'list') {
-        const { stdout } = await this.execa('pijul', ['channel']);
-        return stdout;
-      }
-    } catch (error) {
-      console.error(`Error with channel command in Pijul:`, error);
-      throw error;
+    if (subcommand === 'new') {
+      await runCommand('pijul', ['channel', 'new', name]);
+    } else if (subcommand === 'switch') {
+      await runCommand('pijul', ['channel', 'switch', name]);
+    } else if (subcommand === 'list') {
+      const { stdout } = await runCommand('pijul', ['channel']);
+      return stdout;
     }
   }
 
   async patch(subcommand, name) {
-    try {
-      if (subcommand === 'add') {
-        await this.execa('pijul', ['patch', 'add', name]);
-      } else if (subcommand === 'list') {
-        const { stdout } = await this.execa('pijul', ['log']);
-        return stdout;
-      }
-    } catch (error) {
-      console.error(`Error with patch command in Pijul:`, error);
-      throw error;
+    if (subcommand === 'add') {
+      await runCommand('pijul', ['patch', 'add', name]);
+    } else if (subcommand === 'list') {
+      const { stdout } = await runCommand('pijul', ['log']);
+      return stdout;
     }
   }
 
   async apply(patch) {
-    try {
-      await this.execa('pijul', ['apply', patch]);
-    } catch (error) {
-      console.error(`Error applying patch ${patch} in Pijul:`, error);
-    }
+    await runCommand('pijul', ['apply', patch]);
   }
 
   async conflicts() {
-    try {
-      const { stdout } = await this.execa('pijul', ['credit']);
-      const conflicts = stdout
-        .split('\n')
-        .filter((line) => line.startsWith('C'))
-        .map((line) => {
-          const parts = line.split(' ');
-          return {
-            hash: parts[1],
-            author: parts[2],
-            date: parts[3],
-          };
-        });
-      return JSON.stringify(conflicts, null, 2);
-    } catch (error) {
-      console.error('Error getting conflicts from Pijul:', error);
-      return '';
-    }
+    const { stdout } = await runCommand('pijul', ['credit']);
+    const conflicts = stdout
+      .split('\n')
+      .filter((line) => line.startsWith('C'))
+      .map((line) => {
+        const parts = line.split(' ');
+        return {
+          hash: parts[1],
+          author: parts[2],
+          date: parts[3],
+        };
+      });
+    return JSON.stringify(conflicts, null, 2);
   }
 
   async revert(file) {
-    try {
-      await this.execa('pijul', ['reset', file]);
-    } catch (error) {
-      console.error(`Error reverting file ${file} in Pijul:`, error);
-    }
+    await runCommand('pijul', ['reset', file]);
   }
 
   async undo() {
-    try {
-      const { stdout } = await this.execa('pijul', ['log', '--limit', '1', '--hash-only']);
-      const hash = stdout.trim();
-      if (hash) {
-        await this.unrecord(hash);
-      }
-    } catch (error) {
-      console.error('Error undoing last change in Pijul:', error);
+    const { stdout } = await runCommand('pijul', ['log', '--limit', '1', '--hash-only']);
+    const hash = stdout.trim();
+    if (hash) {
+      await this.unrecord(hash);
     }
   }
 }

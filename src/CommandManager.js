@@ -24,10 +24,16 @@ class CommandManager {
       if (this.commands[command]) {
         await this.commands[command].execute(args);
       } else {
-        this.dependencies.addMessage({ sender: 'system', text: `Unknown command: ${command}` });
+        this.dependencies.addMessage({
+          sender: 'system',
+          text: `Unknown command: /${command}`,
+        });
       }
     } catch (error) {
-      this.dependencies.addMessage({ sender: 'system', text: `Error executing command ${command}: ${error.message}` });
+      this.dependencies.addMessage({
+        sender: 'system',
+        text: `An error occurred while executing the /${command} command:\n${error.stack}`,
+      });
     }
   }
 }

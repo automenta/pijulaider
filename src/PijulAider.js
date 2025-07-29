@@ -1,37 +1,13 @@
-const CommandManager = require('./CommandManager');
-const UIManager = require('./UIManager');
-const BackendManager = require('./BackendManager');
-const LLMManager = require('./LLMManager');
-const MessageHandler = require('./MessageHandler');
-const FileManager = require('./FileManager');
-const LLMChain = require('./LLMChain');
-const { execa, fs } = require('./dependencies');
-
 class PijulAider {
-  constructor(options) {
-    this.options = options;
-    this.backend = null;
-    this.diff = '';
-
-    this.uiManager = new UIManager(this, this.onSendMessage.bind(this), () => this.diff);
-    this.messageHandler = new MessageHandler(this.uiManager);
-
-    const dependencies = {
-      execa,
-      fs,
-      addMessage: this.messageHandler.addMessage.bind(this.messageHandler),
-      getBackend: () => this.backend,
-      setBackend: (backend) => (this.backend = backend),
-      getOptions: () => this.options,
-      setDiff: (diff) => (this.diff = diff),
-      getCodebase: () => this.fileManager.getCodebase(),
-      setCodebase: (codebase) => this.fileManager.setCodebase(codebase),
-      handleSpeech: () => this.handleSpeech(),
-      handleQuery: (query) => this.handleQuery(query),
-    };
-
-    this.backendManager = new BackendManager(dependencies);
-    this.commandManager = new CommandManager(dependencies);
+  constructor(container) {
+    this.container = container;
+    this.options = container.get('options');
+    this.uiManager = container.get('uiManager');
+    this.messageHandler = container.get('messageHandler');
+    this.commandManager = container.get('commandManager');
+    this.fileManager = container.get('fileManager');
+    this.llmChain = container.get('llmChain');
+    this.backendManager = container.get('backendManager');
   }
 
   async onSendMessage(query) {
@@ -50,25 +26,24 @@ class PijulAider {
   }
 
   async initialize() {
-    this.backend = await this.backendManager.initialize();
-    this.fileManager = new FileManager(this.backend, this.messageHandler);
-    const llmManager = new LLMManager();
-    const llm = llmManager.createLlm(this.options.provider, this.options.model);
-    this.llmChain = new LLMChain(llm, this.messageHandler, this.backend, this.options);
+    const backend = await this.backendManager.initialize();
+    this.container.register('backend', backend);
   }
 
   async handleQuery(query) {
     const codebase = this.fileManager.getCodebase();
-    this.diff = await this.llmChain.handleQuery(query, codebase, this.diff);
+    const diff = await this.llmChain.handleQuery(query, codebase, this.container.get('diff'));
+    this.container.register('diff', diff);
   }
 
   async start(files, globFn) {
     try {
       await this.initialize();
       await this.fileManager.loadFiles(files, globFn);
-      this.diff = await this.backend.diff();
+      const diff = await this.container.get('backend').diff();
+      this.container.register('diff', diff);
     } catch (error) {
-      // Errors are already pushed to this.messages in the respective methods
+      this.messageHandler.addMessage({ sender: 'system', text: error.message });
       if (this.uiManager.rerender) {
         this.uiManager.rerender();
       }
