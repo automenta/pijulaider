@@ -1,7 +1,6 @@
 const React = require('react');
-const { render } = require('ink-testing-library');
+const { render, Text } = require('ink');
 const ScrollView = require('../../src/tui/ScrollView');
-const { Text } = require('ink');
 
 describe('ScrollView', () => {
   it('should render its children', () => {

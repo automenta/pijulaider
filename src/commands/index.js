@@ -1,0 +1,17 @@
+module.exports = {
+  add: require('./add'),
+  drop: require('./drop'),
+  diff: require('./diff'),
+  edit: require('./edit'),
+  record: require('./record'),
+  unrecord: require('./unrecord'),
+  undo: require('./undo'),
+  channel: require('./channel'),
+  patch: require('./patch'),
+  conflicts: require('./conflicts'),
+  run: require('./run'),
+  test: require('./test'),
+  speech: require('./speech'),
+  image: require('./image'),
+  help: require('./help'),
+};

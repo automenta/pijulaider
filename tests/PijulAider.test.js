@@ -3,36 +3,35 @@ const FileBackend = require('../src/versioning/FileBackend');
 const GitBackend = require('../src/versioning/GitBackend');
 const PijulBackend = require('../src/versioning/PijulBackend');
 const inquirer = require('inquirer');
-const { editFile } = require('edit-file');
-const { render } = require('ink');
 const { parseDiff, applyDiff } = require('../src/diffUtils');
 const fs = require('fs').promises;
-const filePicker = require('file-picker');
+const CommandManager = require('../src/CommandManager');
+const LLMManager = require('../src/LLMManager');
 
-jest.mock('inquirer');
-jest.mock('edit-file');
-jest.mock('ink');
+jest.mock('inquirer', () => ({
+  prompt: jest.fn(),
+}));
 jest.mock('../src/diffUtils');
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
-    access: jest.fn(),
-    copyFile: jest.fn(),
-    unlink: jest.fn(),
   },
 }));
-jest.mock('file-picker');
 jest.mock('../src/versioning/FileBackend');
 jest.mock('../src/versioning/GitBackend');
 jest.mock('../src/versioning/PijulBackend');
+jest.mock('../src/CommandManager');
+jest.mock('../src/LLMManager');
 
 describe('PijulAider', () => {
   let aider;
   let execa;
 
   beforeEach(() => {
-    execa = jest.fn();
-    aider = new PijulAider({ model: 'gpt-4o' }, execa);
+    aider = new PijulAider({ provider: 'openai', model: 'gpt-4o' });
+    execa = aider.execa = jest.fn();
+    aider.backendManager.execa = execa;
+    aider.uiManager.onSendMessage = jest.fn();
     jest.clearAllMocks();
   });
 
@@ -65,10 +64,12 @@ describe('PijulAider', () => {
     it('should prompt to switch to pijul', async () => {
       execa.mockRejectedValue(new Error());
       inquirer.prompt.mockResolvedValue({ switchToPijul: true });
-      execa.mockResolvedValueOnce({ stdout: 'pijul version 1.0.0' });
+      aider.backendManager.migrate = jest.fn();
+      aider.backendManager.createBackend = jest.fn();
       await aider.initialize();
       expect(inquirer.prompt).toHaveBeenCalled();
-      expect(aider.backend).toBeInstanceOf(PijulBackend);
+      expect(aider.backendManager.migrate).toHaveBeenCalledWith('file', 'pijul');
+      expect(aider.backendManager.createBackend).toHaveBeenCalledWith('pijul');
     });
   });
 
@@ -89,72 +90,11 @@ describe('PijulAider', () => {
   });
 
   describe('handleCommand', () => {
-    beforeEach(() => {
-      aider.backend = new FileBackend();
-    });
-
-    it('should add a file', async () => {
-      fs.readFile.mockResolvedValue('console.log("hello");');
-      await aider.handleCommand('add', ['newfile.js']);
-      expect(aider.backend.add).toHaveBeenCalledWith('newfile.js');
-      expect(aider.codebase).toContain('--- newfile.js ---\nconsole.log("hello");');
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'Added newfile.js to the chat.',
-      });
-    });
-
-    it('should drop a file', async () => {
-      aider.codebase = '--- existing.js ---\nconsole.log("hello");\n\n';
-      await aider.handleCommand('drop', ['existing.js']);
-      expect(aider.codebase).not.toContain('--- existing.js ---');
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'Removed existing.js from the chat.',
-      });
-    });
-
-    it('should run a command', async () => {
-      execa.mockResolvedValue({ stdout: 'hello from command' });
-      await aider.handleCommand('run', ['echo', 'hello from command']);
-      expect(execa).toHaveBeenCalledWith('echo', ['hello from command']);
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: '`/run echo hello from command`\nhello from command',
-      });
-    });
-
-    it('should undo the last change', async () => {
-      await aider.handleCommand('undo', []);
-      expect(aider.backend.undo).toHaveBeenCalled();
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'Undid the last change.',
-      });
-    });
-
-    it('should run tests and handle success', async () => {
-      execa.mockResolvedValue({ stdout: 'All tests passed!' });
-      await aider.handleCommand('test', []);
-      expect(execa).toHaveBeenCalledWith('npm', ['test']);
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'All tests passed!',
-      });
-    });
-
-    it('should run tests and handle failure', async () => {
-      const error = new Error('Tests failed');
-      error.stdout = 'Error: test failed';
-      execa.mockRejectedValue(error);
-      jest.spyOn(aider, 'handleQuery').mockResolvedValue();
-      await aider.handleCommand('test', []);
-      expect(execa).toHaveBeenCalledWith('npm', ['test']);
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: `Tests failed. Attempting to fix...\n${error.stdout}`,
-      });
-      expect(aider.handleQuery).toHaveBeenCalledWith(`The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`);
+    it('should delegate to the command manager', async () => {
+      aider.uiManager.start();
+      aider.uiManager.rerender = jest.fn();
+      await aider.onSendMessage('/add file.js');
+      expect(aider.commandManager.handleCommand).toHaveBeenCalledWith('add', ['file.js']);
     });
   });
 
