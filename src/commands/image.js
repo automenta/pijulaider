@@ -1,17 +1,18 @@
 const filePicker = require('file-picker');
 
 class ImageCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
+    const { addMessage } = this.dependencies;
     const [imagePath] = await filePicker({
       type: 'image',
       multiple: false,
     });
     if (imagePath) {
-      this.aider.addMessage({ sender: 'user', image: imagePath });
+      addMessage({ sender: 'user', image: imagePath });
     }
   }
 }

@@ -1,12 +1,12 @@
 const commands = require('./commands');
 
 class CommandManager {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
     this.commands = {};
     for (const commandName in commands) {
       const CommandClass = commands[commandName];
-      this.commands[commandName] = new CommandClass(this.aider);
+      this.commands[commandName] = new CommandClass(this.dependencies);
     }
   }
 
@@ -15,10 +15,10 @@ class CommandManager {
       if (this.commands[command]) {
         await this.commands[command].execute(args);
       } else {
-        this.aider.addMessage({ sender: 'system', text: `Unknown command: ${command}` });
+        this.dependencies.addMessage({ sender: 'system', text: `Unknown command: ${command}` });
       }
     } catch (error) {
-      this.aider.addMessage({ sender: 'system', text: `Error executing command ${command}: ${error.message}` });
+      this.dependencies.addMessage({ sender: 'system', text: `Error executing command ${command}: ${error.message}` });
     }
   }
 }

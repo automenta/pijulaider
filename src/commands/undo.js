@@ -1,12 +1,15 @@
 class UndoCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
-    await this.aider.backend.undo();
-    this.aider.diff = await this.aider.backend.diff();
-    this.aider.addMessage({ sender: 'system', text: 'Undid the last change.' });
+    const { getBackend, addMessage, setDiff } = this.dependencies;
+    const backend = getBackend();
+    await backend.undo();
+    const diff = await backend.diff();
+    setDiff(diff);
+    addMessage({ sender: 'system', text: 'Undid the last change.' });
   }
 }
 

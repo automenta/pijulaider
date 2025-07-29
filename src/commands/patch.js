@@ -1,23 +1,25 @@
 class PatchCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute(args) {
-    if (typeof this.aider.backend.patch === 'function') {
+    const { getBackend, addMessage } = this.dependencies;
+    const backend = getBackend();
+    if (typeof backend.patch === 'function') {
       const subcommand = args[0];
       const name = args[1];
       if (subcommand === 'list') {
-        const patches = await this.aider.backend.patch(subcommand);
-        this.aider.addMessage({ sender: 'system', text: `Patches:\n${patches}` });
+        const patches = await backend.patch(subcommand);
+        addMessage({ sender: 'system', text: `Patches:\n${patches}` });
       } else if (subcommand === 'apply') {
-        await this.aider.backend.apply(name);
-        this.aider.addMessage({ sender: 'system', text: `Applied patch ${name}` });
+        await backend.apply(name);
+        addMessage({ sender: 'system', text: `Applied patch ${name}` });
       } else {
-        this.aider.addMessage({ sender: 'system', text: 'Usage: /patch [list|apply] [hash]' });
+        addMessage({ sender: 'system', text: 'Usage: /patch [list|apply] [hash]' });
       }
     } else {
-      this.aider.addMessage({ sender: 'system', text: 'This backend does not support patches.' });
+      addMessage({ sender: 'system', text: 'This backend does not support patches.' });
     }
   }
 }

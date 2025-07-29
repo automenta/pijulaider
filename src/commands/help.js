@@ -1,10 +1,10 @@
 class HelpCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   execute() {
-    this.aider.addMessage({
+    this.dependencies.addMessage({
       sender: 'system',
       text: `
 Available commands:

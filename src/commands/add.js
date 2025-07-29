@@ -1,16 +1,15 @@
-const fs = require('fs').promises;
-
 class AddCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute(args) {
+    const { getBackend, addMessage, fs } = this.dependencies;
     for (const file of args) {
-      await this.aider.backend.add(file);
+      await getBackend().add(file);
       const content = await fs.readFile(file, 'utf-8');
-      this.aider.codebase += `--- ${file} ---\n${content}\n\n`;
-      this.aider.addMessage({ sender: 'system', text: `Added ${file} to the chat.` });
+      this.dependencies.codebase += `--- ${file} ---\n${content}\n\n`;
+      addMessage({ sender: 'system', text: `Added ${file} to the chat.` });
     }
   }
 }

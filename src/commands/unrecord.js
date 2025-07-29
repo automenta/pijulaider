@@ -1,14 +1,16 @@
 class UnrecordCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute(args) {
-    if (typeof this.aider.backend.unrecord === 'function') {
-      await this.aider.backend.unrecord(args[0]);
-      this.aider.addMessage({ sender: 'system', text: `Unrecorded change ${args[0]}` });
+    const { getBackend, addMessage } = this.dependencies;
+    const backend = getBackend();
+    if (typeof backend.unrecord === 'function') {
+      await backend.unrecord(args[0]);
+      addMessage({ sender: 'system', text: `Unrecorded change ${args[0]}` });
     } else {
-      this.aider.addMessage({ sender: 'system', text: 'This backend does not support unrecord.' });
+      addMessage({ sender: 'system', text: 'This backend does not support unrecord.' });
     }
   }
 }

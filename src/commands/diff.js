@@ -1,11 +1,13 @@
 class DiffCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
-    this.aider.diff = await this.aider.backend.diff();
-    this.aider.addMessage({ sender: 'system', text: 'Diff updated.' });
+    const { getBackend, addMessage, setDiff } = this.dependencies;
+    const diff = await getBackend().diff();
+    setDiff(diff);
+    addMessage({ sender: 'system', text: 'Diff updated.' });
   }
 }
 

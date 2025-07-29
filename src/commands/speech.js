@@ -1,11 +1,12 @@
 class SpeechCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
-    this.aider.addMessage({ sender: 'system', text: 'Recording...' });
-    await this.aider.handleSpeech();
+    const { addMessage, handleSpeech } = this.dependencies;
+    addMessage({ sender: 'system', text: 'Recording...' });
+    await handleSpeech();
   }
 }
 

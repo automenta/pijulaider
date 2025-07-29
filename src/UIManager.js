@@ -3,30 +3,19 @@ const { render } = require('ink');
 const Chat = require('./tui/Chat');
 
 class UIManager {
-  constructor(aider) {
+  constructor(aider, onSendMessage, getDiff) {
     this.aider = aider;
+    this.onSendMessage = onSendMessage;
+    this.getDiff = getDiff;
     this.rerender = null;
   }
 
   start() {
-    this.aider.onSendMessage = async (query) => {
-      this.aider.addMessage({ sender: 'user', text: query });
-
-      if (query.startsWith('/')) {
-        const [command, ...args] = query.slice(1).split(' ');
-        await this.aider.commandManager.handleCommand(command, args);
-      } else {
-        await this.aider.handleQuery(query);
-      }
-
-      this.rerender();
-    };
-
     const App = () => (
       <Chat
         messages={this.aider.messages}
-        onSendMessage={this.aider.onSendMessage}
-        diff={this.aider.diff}
+        onSendMessage={this.onSendMessage}
+        diff={this.getDiff()}
       />
     );
 

@@ -2,10 +2,6 @@ const React = require('react');
 const { render } = require('ink');
 const DiffView = require('../../src/tui/DiffView');
 
-jest.mock('react-syntax-highlighter', () => ({
-  default: ({ children }) => children,
-}));
-
 describe('DiffView', () => {
   it('should render a diff', () => {
     const diff = `

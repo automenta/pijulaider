@@ -1,18 +1,19 @@
 class TestCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
+    const { execa, addMessage, handleQuery } = this.dependencies;
     try {
-      await this.aider.execa('npm', ['test']);
-      this.aider.addMessage({ sender: 'system', text: 'All tests passed!' });
+      await execa('npm', ['test']);
+      addMessage({ sender: 'system', text: 'All tests passed!' });
     } catch (error) {
-      this.aider.addMessage({
+      addMessage({
         sender: 'system',
         text: `Tests failed. Attempting to fix...\n${error.stdout}`,
       });
-      await this.aider.handleQuery(`The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`);
+      await handleQuery(`The tests failed with the following output:\n${error.stdout}\nPlease fix the tests.`);
     }
   }
 }

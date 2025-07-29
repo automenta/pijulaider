@@ -1,11 +1,12 @@
 class RecordCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute(args) {
-    await this.aider.backend.record(args.join(' '));
-    this.aider.addMessage({ sender: 'system', text: 'Changes recorded.' });
+    const { getBackend, addMessage } = this.dependencies;
+    await getBackend().record(args.join(' '));
+    addMessage({ sender: 'system', text: 'Changes recorded.' });
   }
 }
 

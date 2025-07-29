@@ -1,16 +1,15 @@
 const { ChatPromptTemplate } = require('@langchain/core/prompts');
 const { StringOutputParser } = require('@langchain/core/output_parsers');
 const { parseDiff, applyDiff } = require('./diffUtils');
-const fs = require('fs').promises;
 const CommandManager = require('./CommandManager');
 const UIManager = require('./UIManager');
 const BackendManager = require('./BackendManager');
 const LLMManager = require('./LLMManager');
+const { execa, fs } = require('./dependencies');
 
 class PijulAider {
   constructor(options) {
     this.options = options;
-    this.execa = require('execa');
     this.llmManager = new LLMManager();
     this.llm = this.llmManager.createLlm(options.provider, options.model);
     this.prompt = ChatPromptTemplate.fromTemplate(
@@ -34,13 +33,43 @@ Here is the user's query:
     this.messages = [];
     this.diff = '';
     this.codebase = '';
-    this.commandManager = new CommandManager(this);
-    this.uiManager = new UIManager(this);
-    this.backendManager = new BackendManager(this);
+
+    const dependencies = {
+      execa,
+      fs,
+      addMessage: this.addMessage.bind(this),
+      getBackend: () => this.backend,
+      setBackend: (backend) => (this.backend = backend),
+      getOptions: () => this.options,
+      setDiff: (diff) => (this.diff = diff),
+      getCodebase: () => this.codebase,
+      setCodebase: (codebase) => (this.codebase = codebase),
+      handleSpeech: () => this.handleSpeech(),
+      handleQuery: (query) => this.handleQuery(query),
+    };
+
+    this.commandManager = new CommandManager(dependencies);
+    this.uiManager = new UIManager(this, this.onSendMessage.bind(this), () => this.diff);
+    this.backendManager = new BackendManager(dependencies);
+  }
+
+  async onSendMessage(query) {
+    this.addMessage({ sender: 'user', text: query });
+
+    if (query.startsWith('/')) {
+      const [command, ...args] = query.slice(1).split(' ');
+      await this.commandManager.handleCommand(command, args);
+    } else {
+      await this.handleQuery(query);
+    }
+
+    if (this.uiManager.rerender) {
+      this.uiManager.rerender();
+    }
   }
 
   async initialize() {
-    await this.backendManager.initialize();
+    this.backend = await this.backendManager.initialize();
   }
 
   async loadFiles(files, globFn) {
@@ -52,7 +81,7 @@ Here is the user's query:
         const content = await fs.readFile(file, 'utf-8');
         this.codebase += `--- ${file} ---\n${content}\n\n`;
       } catch (error) {
-        this.messages.push({ sender: 'system', text: `Error loading file ${file}: ${error.message}` });
+        this.addMessage({ sender: 'system', text: `Error loading file ${file}: ${error.message}` });
       }
     }
     this.diff = await this.backend.diff();
@@ -120,6 +149,10 @@ Here is the user's query:
 
   async run(files, globFn) {
     await this.start(files, globFn);
+  }
+
+  async handleSpeech() {
+    // TODO: Implement speech handling
   }
 }
 

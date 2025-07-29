@@ -1,11 +1,13 @@
 class ConflictsCommand {
-  constructor(aider) {
-    this.aider = aider;
+  constructor(dependencies) {
+    this.dependencies = dependencies;
   }
 
   async execute() {
-    if (typeof this.aider.backend.conflicts === 'function') {
-      const conflicts = await this.aider.backend.conflicts();
+    const { getBackend, addMessage } = this.dependencies;
+    const backend = getBackend();
+    if (typeof backend.conflicts === 'function') {
+      const conflicts = await backend.conflicts();
       try {
         const parsedConflicts = JSON.parse(conflicts);
         if (Array.isArray(parsedConflicts) && parsedConflicts.length > 0) {
@@ -17,15 +19,15 @@ class ConflictsCommand {
               conflictMessage += `- ${conflict.hash}\n`;
             }
           }
-          this.aider.addMessage({ sender: 'system', text: conflictMessage });
+          addMessage({ sender: 'system', text: conflictMessage });
         } else {
-          this.aider.addMessage({ sender: 'system', text: 'No conflicts found.' });
+          addMessage({ sender: 'system', text: 'No conflicts found.' });
         }
       } catch (error) {
-        this.aider.addMessage({ sender: 'system', text: conflicts });
+        addMessage({ sender: 'system', text: conflicts });
       }
     } else {
-      this.aider.addMessage({ sender: 'system', text: 'This backend does not support conflicts.' });
+      addMessage({ sender: 'system', text: 'This backend does not support conflicts.' });
     }
   }
 }

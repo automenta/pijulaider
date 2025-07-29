@@ -1,13 +1,14 @@
 const FileBackend = require('./versioning/FileBackend');
 const GitBackend = require('./versioning/GitBackend');
 const PijulBackend = require('./versioning/PijulBackend');
-const { execa } = require('execa');
 const inquirer = require('inquirer');
 
 class BackendManager {
-  constructor(aider) {
-    this.aider = aider;
+  constructor({ execa, addMessage, getOptions, setBackend }) {
     this.execa = execa;
+    this.addMessage = addMessage;
+    this.getOptions = getOptions;
+    this.setBackend = setBackend;
   }
 
   async detectBackend() {
@@ -80,9 +81,10 @@ class BackendManager {
   }
 
   async initialize() {
+    const options = this.getOptions();
     const currentBackend = await this.detectBackend();
     try {
-      if (currentBackend !== 'pijul' && !this.aider.options.backend) {
+      if (currentBackend !== 'pijul' && !options.backend) {
         const { switchToPijul } = await inquirer.prompt([
           {
             type: 'confirm',
@@ -94,16 +96,22 @@ class BackendManager {
 
         if (switchToPijul) {
           await this.migrate(currentBackend, 'pijul');
-          this.aider.backend = await this.createBackend('pijul');
-          this.aider.addMessage({ sender: 'system', text: 'Successfully migrated to Pijul.' });
+          const backend = await this.createBackend('pijul');
+          this.setBackend(backend);
+          this.addMessage({ sender: 'system', text: 'Successfully migrated to Pijul.' });
+          return backend;
         } else {
-          this.aider.backend = await this.createBackend(currentBackend);
+          const backend = await this.createBackend(currentBackend);
+          this.setBackend(backend);
+          return backend;
         }
       } else {
-        this.aider.backend = await this.createBackend(this.aider.options.backend || currentBackend);
+        const backend = await this.createBackend(options.backend || currentBackend);
+        this.setBackend(backend);
+        return backend;
       }
     } catch (error) {
-      this.aider.addMessage({ sender: 'system', text: `Error initializing backend: ${error.message}` });
+      this.addMessage({ sender: 'system', text: `Error initializing backend: ${error.message}` });
       throw error;
     }
   }
