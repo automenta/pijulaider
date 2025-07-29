@@ -11,6 +11,7 @@ module.exports = {
     'yoga-layout': '<rootDir>/tests/mocks/yoga-layout.js',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(ink|ink-testing-library|react-reconciler)/)',
+    'node_modules/(?!(ink|ink-select-input|ink-testing-library|ink-text-input|react-reconciler|ansi-escapes|environment|is-in-ci|auto-bind|patch-console)/)',
   ],
+  moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
 };
