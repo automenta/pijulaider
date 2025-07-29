@@ -1,7 +1,5 @@
 module.exports = {
-  transform: {
-    '^.+\\.js$': 'babel-jest',
-  },
+  moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '@langchain/openai': '<rootDir>/tests/mocks/langchain.js',
     '@langchain/core/prompts': '<rootDir>/tests/mocks/langchain.js',
