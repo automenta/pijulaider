@@ -34,6 +34,10 @@ class VersioningBackend {
   undo() {
     throw new Error('Not implemented');
   }
+
+  async drop() {
+    throw new Error('Not implemented');
+  }
 }
 
 module.exports = VersioningBackend;

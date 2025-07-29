@@ -13,7 +13,7 @@ module.exports = {
     '../util': '<rootDir>/tests/mocks/util.js',
   },
   transformIgnorePatterns: [
-    "node_modules/(?!(ink|ink-select-input|ink-testing-library|ink-text-input|react-reconciler|ansi-escapes|environment|is-in-ci|auto-bind|patch-console|@sindresorhus/is|escape-string-regexp|slice-ansi|chalk|get-stream|p-event|p-timeout|yocto-queue|@types/react|ink-gradient|ink-big-text|react-syntax-highlighter|execa)/)",
+    "node_modules/(?!(ink|ink-select-input|ink-testing-library|ink-text-input|react-reconciler|ansi-escapes|environment|is-in-ci|auto-bind|patch-console|@sindresorhus/is|escape-string-regexp|slice-ansi|chalk|get-stream|p-event|p-timeout|yocto-queue|@types/react|ink-gradient|ink-big-text|react-syntax-highlighter|execa|is-plain-obj|figures|is-unicode-supported|yoctocolors|npm-run-path|path-key)/)",
   ],
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
 };

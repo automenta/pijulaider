@@ -7,6 +7,7 @@ class FileBackend extends VersioningBackend {
   constructor() {
     super();
     this.files = new Map();
+    this.staged = new Map();
   }
 
   async add(file) {
@@ -17,21 +18,21 @@ class FileBackend extends VersioningBackend {
         await fs.copyFile(file, backupFile);
         this.files.set(file, backupFile);
       }
+      this.staged.set(file, this.files.get(file));
     } catch (error) {
       throw new Error(`File not found: ${file}`);
     }
   }
 
   async unstage(file) {
-    const backupFile = this.files.get(file);
-    if (backupFile) {
-      await fs.unlink(backupFile);
-      this.files.delete(file);
-    }
+    this.staged.delete(file);
   }
 
   async record(message) {
-    // No-op for file backend
+    for (const file of this.staged.keys()) {
+      this.files.delete(file);
+    }
+    this.staged.clear();
   }
 
   async unrecord(hash) {
@@ -69,7 +70,7 @@ class FileBackend extends VersioningBackend {
 
   async diff() {
     const diffs = [];
-    for (const [file, backupFile] of this.files) {
+    for (const [file, backupFile] of this.staged) {
       const { stdout } = await runCommand('diff', ['-u', backupFile, file], { reject: false });
       diffs.push(stdout);
     }
@@ -81,6 +82,10 @@ class FileBackend extends VersioningBackend {
       await fs.unlink(backupFile);
     }
     this.files.clear();
+  }
+
+  async drop() {
+    await this.clear();
   }
 }
 

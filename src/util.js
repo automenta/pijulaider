@@ -5,7 +5,7 @@ async function runCommand(command, args, options) {
     const result = await execa(command, args, options);
     return result;
   } catch (error) {
-    throw new Error(`Command failed: ${command} ${args.join(' ')}\n${error.stderr}`);
+    throw new Error(`Command failed with exit code ${error.exitCode}: ${command} ${args.join(' ')}\n${error.stderr}`);
   }
 }
 

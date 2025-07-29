@@ -10,8 +10,12 @@ class GitBackend extends VersioningBackend {
     await runCommand('git', ['commit', '-m', message]);
   }
 
-  async unrecord() {
-    await runCommand('git', ['reset', 'HEAD~']);
+  async unrecord(hash) {
+    if (hash) {
+      await runCommand('git', ['revert', '--no-commit', hash]);
+    } else {
+      await runCommand('git', ['reset', 'HEAD~']);
+    }
   }
 
   async channel(subcommand, name) {
@@ -69,7 +73,12 @@ class GitBackend extends VersioningBackend {
   }
 
   async undo() {
-    await this.unrecord();
+    await runCommand('git', ['checkout', 'HEAD', '--', '.']);
+  }
+
+  async drop() {
+    await runCommand('git', ['checkout', 'HEAD', '--', '.']);
+    await runCommand('git', ['clean', '-fd']);
   }
 }
 

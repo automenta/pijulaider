@@ -44,6 +44,7 @@ describe('FileBackend', () => {
     await fs.writeFile(file, modifiedContent);
     backend.files.set(file, backupFile);
     runCommand.mockResolvedValue({ stdout: 'diff --git a/test.txt b/test.txt\n--- a/test.txt\n+++ b/test.txt\n@@ -1 +1 @@\n-original\n+modified' });
+    await backend.add(file);
     const diff = await backend.diff();
     expect(diff).toContain('-original');
     expect(diff).toContain('+modified');

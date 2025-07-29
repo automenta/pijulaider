@@ -75,6 +75,10 @@ class PijulBackend extends VersioningBackend {
       await this.unrecord(hash);
     }
   }
+
+  async drop() {
+    await runCommand('pijul', ['reset']);
+  }
 }
 
 module.exports = PijulBackend;

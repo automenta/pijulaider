@@ -3,19 +3,17 @@ class DropCommand {
     this.dependencies = dependencies;
   }
 
-  async execute(args) {
-    const { getCodebase, setCodebase, addMessage } = this.dependencies;
-    let codebase = getCodebase();
-    for (const file of args) {
-      const fileRegex = new RegExp(`--- ${file} ---\\n[\\s\\S]*?\\n\\n`);
-      if (codebase.match(fileRegex)) {
-        codebase = codebase.replace(fileRegex, '');
-        setCodebase(codebase);
-        addMessage({ sender: 'system', text: `Removed ${file} from the chat.` });
-      } else {
-        addMessage({ sender: 'system', text: `File ${file} not found in the chat.` });
-      }
+  async execute() {
+    const { getBackend, addMessage, setDiff } = this.dependencies;
+    const backend = getBackend();
+    if (typeof backend.drop !== 'function') {
+      addMessage({ sender: 'system', text: 'This backend does not support drop.' });
+      return;
     }
+    await backend.drop();
+    const diff = await backend.diff();
+    setDiff(diff);
+    addMessage({ sender: 'system', text: 'All changes have been dropped.' });
   }
 }
 
