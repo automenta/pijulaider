@@ -1,6 +1,6 @@
 const React = require('react');
 const { Box } = require('ink');
-const { default: SyntaxHighlighter } = require('react-syntax-highlighter');
+const SyntaxHighlighter = require('react-syntax-highlighter');
 const { docco } = require('react-syntax-highlighter/dist/cjs/styles/hljs');
 
 const DiffView = ({ diff }) => {
