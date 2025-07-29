@@ -1,7 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
-const { runCommand } = require('../util');
-const VersioningBackend = require('./VersioningBackend');
+import fs from 'fs/promises';
+import path from 'path';
+import { runCommand } from '../util';
+import VersioningBackend from './VersioningBackend';
 
 class FileBackend extends VersioningBackend {
   constructor() {
@@ -92,4 +92,4 @@ class FileBackend extends VersioningBackend {
   }
 }
 
-module.exports = FileBackend;
+export default FileBackend;

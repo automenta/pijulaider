@@ -1,5 +1,5 @@
-const { runCommand } = require('../util');
-const VersioningBackend = require('./VersioningBackend');
+import { runCommand } from '../util';
+import VersioningBackend from './VersioningBackend';
 
 class GitBackend extends VersioningBackend {
   async add(file) {
@@ -98,4 +98,4 @@ class GitBackend extends VersioningBackend {
   }
 }
 
-module.exports = GitBackend;
+export default GitBackend;

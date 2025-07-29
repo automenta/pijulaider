@@ -1,7 +1,7 @@
-const { execa } = require('execa');
-const fs = require('fs').promises;
+import { execa } from 'execa';
+import fs from 'fs/promises';
 
-module.exports = {
+export {
   execa,
   fs,
 };

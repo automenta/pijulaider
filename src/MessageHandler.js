@@ -16,4 +16,4 @@ class MessageHandler {
   }
 }
 
-module.exports = MessageHandler;
+export default MessageHandler;

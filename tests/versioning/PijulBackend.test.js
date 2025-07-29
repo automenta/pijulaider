@@ -1,4 +1,4 @@
-const PijulBackend = require('../../src/versioning/PijulBackend');
+const PijulBackend = require('../../src/versioning/PijulBackend').default;
 const { runCommand } = require('../util');
 
 jest.mock('../util');

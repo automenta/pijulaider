@@ -1,5 +1,5 @@
-const fs = require('fs').promises;
-const { applyPatch, parsePatch } = require('diff');
+import fs from 'fs/promises';
+import { applyPatch, parsePatch } from 'diff';
 
 function parseDiff(diffStr) {
   const files = parsePatch(diffStr);
@@ -21,4 +21,4 @@ async function applyDiff(parsedDiff) {
   }
 }
 
-module.exports = { parseDiff, applyDiff };
+export { parseDiff, applyDiff };

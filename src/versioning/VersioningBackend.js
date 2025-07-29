@@ -36,4 +36,4 @@ class VersioningBackend {
   }
 }
 
-module.exports = VersioningBackend;
+export default VersioningBackend;

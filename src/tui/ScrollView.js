@@ -1,5 +1,5 @@
-const React = require('react');
-const { Box, useInput } = require('ink');
+import React from 'react';
+import { Box, useInput } from 'ink';
 
 const ScrollView = ({ children }) => {
   const [scrollTop, setScrollTop] = React.useState(0);
@@ -23,4 +23,4 @@ const ScrollView = ({ children }) => {
   );
 };
 
-module.exports = ScrollView;
+export default ScrollView;

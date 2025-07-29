@@ -1,7 +1,7 @@
-const FileBackend = require('./versioning/FileBackend');
-const GitBackend = require('./versioning/GitBackend');
-const PijulBackend = require('./versioning/PijulBackend');
-const inquirer = require('inquirer');
+import FileBackend from './versioning/FileBackend';
+import GitBackend from './versioning/GitBackend';
+import PijulBackend from './versioning/PijulBackend';
+import inquirer from 'inquirer';
 
 class BackendManager {
   constructor({ execa, addMessage, getOptions, setBackend }) {
@@ -94,4 +94,4 @@ class BackendManager {
   }
 }
 
-module.exports = BackendManager;
+export default BackendManager;

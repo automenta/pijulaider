@@ -1,4 +1,4 @@
-const { Command } = require('commander');
+import { Command } from 'commander';
 
 function getConfig() {
   const program = new Command();
@@ -20,6 +20,6 @@ function getConfig() {
   };
 }
 
-module.exports = {
+export {
   getConfig,
 };

@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "description": "A terminal-based AI pair programming tool for LLM-driven code editing, feature generation, bug fixing, and change management.",
   "main": "dist/index.js",
+  "type": "module",
   "bin": {
     "pijulaider": "dist/index.js"
   },
@@ -11,8 +12,8 @@
   },
   "scripts": {
     "test": "jest --testTimeout 2000 --detectOpenHandles",
-    "start": "node dist/index.js",
-    "build": "esbuild ./src --outdir=dist --loader:.js=jsx --format=cjs --platform=node --allow-overwrite"
+    "start": "node dist/index.js README.md",
+    "build": "esbuild src/index.js --outfile=dist/index.js --format=esm --platform=node --allow-overwrite --bundle --external:node-pty --external:react-devtools-core --external:ink --external:commander --external:node-microphone --external:cross-spawn --external:yoctocolors-cjs --external:mute-stream --external:chardet --external:external-editor"
   },
   "repository": {
     "type": "git",
@@ -59,6 +60,7 @@
     "react-syntax-highlighter": "^15.6.1"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
     "@babel/runtime": "^7.28.2",
     "babel-jest": "^30.0.5",

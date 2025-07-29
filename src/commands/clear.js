@@ -10,4 +10,4 @@ class ClearCommand {
   }
 }
 
-module.exports = ClearCommand;
+export default ClearCommand;

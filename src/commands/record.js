@@ -10,4 +10,4 @@ class RecordCommand {
   }
 }
 
-module.exports = RecordCommand;
+export default RecordCommand;

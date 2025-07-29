@@ -1,6 +1,6 @@
-const { ChatPromptTemplate } = require('@langchain/core/prompts');
-const { StringOutputParser } = require('@langchain/core/output_parsers');
-const { parseDiff, applyDiff } = require('./diffUtils');
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
+import { parseDiff, applyDiff } from './diffUtils';
 
 class LLMChain {
   constructor(llm, messageHandler, backend, options) {
@@ -68,4 +68,4 @@ Here is the user's query:
   }
 }
 
-module.exports = LLMChain;
+export default LLMChain;

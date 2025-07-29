@@ -68,4 +68,4 @@ class PijulAider {
   }
 }
 
-module.exports = PijulAider;
+export default PijulAider;

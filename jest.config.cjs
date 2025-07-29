@@ -10,7 +10,7 @@ module.exports = {
     '@langchain/google-genai': '<rootDir>/tests/mocks/langchain.js',
     'yoga-layout': '<rootDir>/tests/mocks/yoga-layout.js',
     'ink': '<rootDir>/tests/mocks/ink.js',
-    '../util': '<rootDir>/tests/mocks/util.js',
+    '../util': '<rootDir>/src/util',
     'execa': '<rootDir>/tests/mocks/execa.js',
     'glob': '<rootDir>/tests/mocks/glob.js',
   },
@@ -20,7 +20,7 @@ module.exports = {
     '/src/commands/test.js',
   ],
   transformIgnorePatterns: [
-    "/node_modules/",
+    '/node_modules/', // Ignore all node_modules by default
   ],
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
   forceExit: true,

@@ -1,5 +1,5 @@
-const { runCommand } = require('../util');
-const VersioningBackend = require('./VersioningBackend');
+import { runCommand } from '../util';
+import VersioningBackend from './VersioningBackend';
 
 class PijulBackend extends VersioningBackend {
   async add(file) {
@@ -106,4 +106,4 @@ class PijulBackend extends VersioningBackend {
   }
 }
 
-module.exports = PijulBackend;
+export default PijulBackend;

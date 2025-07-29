@@ -1,5 +1,5 @@
-const glob = require('glob');
-const { fs } = require('./dependencies');
+import { glob } from 'glob';
+import { fs } from './dependencies';
 
 class FileManager {
   constructor(backend, messageHandler) {
@@ -30,4 +30,4 @@ class FileManager {
   }
 }
 
-module.exports = FileManager;
+export default FileManager;

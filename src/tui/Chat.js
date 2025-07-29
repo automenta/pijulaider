@@ -1,9 +1,9 @@
-const React = require('react');
-const { Box, Text } = require('ink');
-const TextInput = require('ink-text-input').default;
-const Mic = require('node-microphone');
-const DiffView = require('./DiffView');
-const ScrollView = require('./ScrollView');
+import React from 'react';
+import { Box, Text } from 'ink';
+import TextInput from 'ink-text-input';
+import Mic from 'node-microphone';
+import DiffView from './DiffView';
+import ScrollView from './ScrollView';
 
 const Chat = ({ messages, onSendMessage, diff }) => {
   const [query, setQuery] = React.useState('');
@@ -66,4 +66,4 @@ const Chat = ({ messages, onSendMessage, diff }) => {
   );
 };
 
-module.exports = Chat;
+export default Chat;

@@ -1,5 +1,5 @@
-const React = require('react');
-const Chat = require('./tui/Chat');
+import React from 'react';
+import Chat from './tui/Chat';
 
 class UIManager {
   constructor(aider, onSendMessage, getDiff) {
@@ -30,4 +30,4 @@ class UIManager {
   }
 }
 
-module.exports = UIManager;
+export default UIManager;

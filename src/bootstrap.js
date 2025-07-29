@@ -1,13 +1,13 @@
-const Container = require('./Container');
-const CommandManager = require('./CommandManager');
-const UIManager = require('./UIManager');
-const BackendManager = require('./BackendManager');
-const LLMManager = require('./LLMManager');
-const MessageHandler = require('./MessageHandler');
-const FileManager = require('./FileManager');
-const LLMChain = require('./LLMChain');
-const PijulAider = require('./PijulAider');
-const { execa, fs } = require('./dependencies');
+import Container from './Container';
+import CommandManager from './CommandManager';
+import UIManager from './UIManager';
+import BackendManager from './BackendManager';
+import LLMManager from './LLMManager';
+import MessageHandler from './MessageHandler';
+import FileManager from './FileManager';
+import LLMChain from './LLMChain';
+import PijulAider from './PijulAider';
+import { execa, fs } from './dependencies';
 
 function bootstrap(options) {
   const container = new Container();
@@ -76,4 +76,4 @@ function bootstrap(options) {
   return container;
 }
 
-module.exports = bootstrap;
+export default bootstrap;

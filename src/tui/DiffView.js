@@ -1,7 +1,7 @@
-const React = require('react');
-const { Box } = require('ink');
-const SyntaxHighlighter = require('react-syntax-highlighter');
-const { docco } = require('react-syntax-highlighter/dist/cjs/styles/hljs');
+import React from 'react';
+import { Box } from 'ink';
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import { docco } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 
 const DiffView = ({ diff }) => {
   return (
@@ -13,4 +13,4 @@ const DiffView = ({ diff }) => {
   );
 };
 
-module.exports = DiffView;
+export default DiffView;

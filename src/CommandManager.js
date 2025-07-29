@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 class CommandManager {
   constructor(dependencies) {
@@ -15,8 +15,11 @@ class CommandManager {
     for (const file of commandFiles) {
       if (file.endsWith('.js')) {
         const commandName = path.basename(file, '.js');
-        const CommandClass = require(path.join(commandsPath, file));
-        this.commands[commandName] = new CommandClass(this.dependencies);
+        // Dynamically import command modules
+        import(path.join(commandsPath, file)).then(module => {
+          const CommandClass = module.default;
+          this.commands[commandName] = new CommandClass(this.dependencies);
+        });
       }
     }
   }
@@ -31,7 +34,8 @@ class CommandManager {
           text: `Unknown command: /${command}`,
         });
       }
-    } catch (error) {
+    }
+    catch (error) {
       this.dependencies.addMessage({
         sender: 'system',
         text: `An error occurred while executing the /${command} command:\n${error.stack}`,
@@ -40,4 +44,4 @@ class CommandManager {
   }
 }
 
-module.exports = CommandManager;
+export default CommandManager;

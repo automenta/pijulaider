@@ -1,6 +1,6 @@
-const { ChatOpenAI } = require('@langchain/openai');
-const { ChatAnthropic } = require('@langchain/anthropic');
-const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
 class LLMManager {
   createLlm(provider, model) {
@@ -17,4 +17,4 @@ class LLMManager {
   }
 }
 
-module.exports = LLMManager;
+export default LLMManager;
