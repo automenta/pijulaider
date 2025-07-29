@@ -77,16 +77,16 @@ class FileBackend extends VersioningBackend {
   }
 
   async diff() {
-    let diff = '';
+    const diffs = [];
     for (const [file, backupFile] of this.files) {
       try {
         const { stdout } = await this.execa('diff', ['-u', backupFile, file], { reject: false });
-        diff += stdout;
+        diffs.push(stdout);
       } catch (error) {
         console.error(`Error getting diff for file ${file}:`, error);
       }
     }
-    return diff;
+    return diffs.join('\n');
   }
 
   async clear() {

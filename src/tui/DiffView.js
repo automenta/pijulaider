@@ -1,5 +1,5 @@
 const React = require('react');
-const { Box, Text } = require('ink');
+const { Box } = require('ink');
 const { default: SyntaxHighlighter } = require('react-syntax-highlighter');
 const { docco } = require('react-syntax-highlighter/dist/cjs/styles/hljs');
 

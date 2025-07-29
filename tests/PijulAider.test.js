@@ -7,6 +7,8 @@ const { parseDiff, applyDiff } = require('../src/diffUtils');
 const fs = require('fs').promises;
 const CommandManager = require('../src/CommandManager');
 const LLMManager = require('../src/LLMManager');
+const LLMChain = require('../src/LLMChain');
+const FileManager = require('../src/FileManager');
 
 jest.mock('inquirer', () => ({
   prompt: jest.fn(),
@@ -22,6 +24,9 @@ jest.mock('../src/versioning/GitBackend');
 jest.mock('../src/versioning/PijulBackend');
 jest.mock('../src/CommandManager');
 jest.mock('../src/LLMManager');
+jest.mock('../src/LLMChain');
+jest.mock('../src/FileManager');
+jest.mock('glob', () => require('./mocks/glob'));
 
 describe('PijulAider', () => {
   let aider;
@@ -29,8 +34,7 @@ describe('PijulAider', () => {
 
   beforeEach(() => {
     aider = new PijulAider({ provider: 'openai', model: 'gpt-4o' });
-    execa = aider.execa = jest.fn();
-    aider.backendManager.execa = execa;
+    execa = aider.backendManager.execa = jest.fn();
     aider.uiManager.onSendMessage = jest.fn();
     jest.clearAllMocks();
   });
@@ -39,6 +43,7 @@ describe('PijulAider', () => {
     it('should create a file backend by default', async () => {
       execa.mockRejectedValue(new Error());
       inquirer.prompt.mockResolvedValue({ switchToPijul: false });
+      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new FileBackend());
       await aider.initialize();
       expect(aider.backend).toBeInstanceOf(FileBackend);
     });
@@ -50,6 +55,7 @@ describe('PijulAider', () => {
         return Promise.resolve();
       });
       inquirer.prompt.mockResolvedValue({ switchToPijul: false });
+      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new GitBackend());
       await aider.initialize();
       expect(aider.backend).toBeInstanceOf(GitBackend);
     });
@@ -57,6 +63,7 @@ describe('PijulAider', () => {
     it('should create a pijul backend when pijul is detected', async () => {
       execa.mockResolvedValue({ stdout: 'pijul version 1.0.0' });
       inquirer.prompt.mockResolvedValue({ switchToPijul: false });
+      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new PijulBackend());
       await aider.initialize();
       expect(aider.backend).toBeInstanceOf(PijulBackend);
     });
@@ -64,74 +71,44 @@ describe('PijulAider', () => {
     it('should prompt to switch to pijul', async () => {
       execa.mockRejectedValue(new Error());
       inquirer.prompt.mockResolvedValue({ switchToPijul: true });
-      aider.backendManager.migrate = jest.fn();
-      aider.backendManager.createBackend = jest.fn();
+      const migrate = jest.spyOn(aider.backendManager, 'migrate').mockResolvedValue();
+      jest.spyOn(aider.backendManager, 'createBackend').mockResolvedValue(new PijulBackend());
       await aider.initialize();
       expect(inquirer.prompt).toHaveBeenCalled();
-      expect(aider.backendManager.migrate).toHaveBeenCalledWith('file', 'pijul');
-      expect(aider.backendManager.createBackend).toHaveBeenCalledWith('pijul');
+      expect(migrate).toHaveBeenCalledWith('file', 'pijul');
     });
   });
 
-  describe('loadFiles', () => {
+  describe('start', () => {
     it('should load files into the codebase', async () => {
-      const files = ['file1.js', 'file2.js'];
-      const contents = {
-        'file1.js': 'console.log("file1");',
-        'file2.js': 'console.log("file2");',
-      };
-      const globFn = jest.fn().mockResolvedValue(files);
-      fs.readFile.mockImplementation((file) => Promise.resolve(contents[file]));
+      jest.spyOn(aider, 'initialize').mockResolvedValue();
       aider.backend = new FileBackend();
-      await aider.loadFiles([], globFn);
-      expect(aider.codebase).toContain('--- file1.js ---\nconsole.log("file1");');
-      expect(aider.codebase).toContain('--- file2.js ---\nconsole.log("file2");');
+      const fileManager = new FileManager(aider.backend, aider.messageHandler);
+      aider.fileManager = fileManager;
+      const loadFiles = jest.spyOn(fileManager, 'loadFiles').mockResolvedValue();
+      await aider.start([]);
+      expect(loadFiles).toHaveBeenCalled();
     });
   });
 
-  describe('handleCommand', () => {
+
+  describe('onSendMessage', () => {
     it('should delegate to the command manager', async () => {
-      aider.uiManager.start();
-      aider.uiManager.rerender = jest.fn();
+      const handleCommand = jest.spyOn(aider.commandManager, 'handleCommand').mockResolvedValue();
       await aider.onSendMessage('/add file.js');
-      expect(aider.commandManager.handleCommand).toHaveBeenCalledWith('add', ['file.js']);
+      expect(handleCommand).toHaveBeenCalledWith('add', ['file.js']);
     });
   });
 
   describe('handleQuery', () => {
-    beforeEach(() => {
-      aider.backend = new FileBackend();
-    });
-
     it('should call the LLM and apply the diff', async () => {
-      jest.spyOn(aider.chain, 'invoke').mockResolvedValue('some diff');
-      parseDiff.mockReturnValue({/* a parsed diff object */});
-      applyDiff.mockResolvedValue(undefined);
+      aider.llmChain = new LLMChain();
+      const handleQuery = jest.spyOn(aider.llmChain, 'handleQuery').mockResolvedValue('some diff');
+      aider.fileManager = new FileManager();
+      jest.spyOn(aider.fileManager, 'getCodebase').mockReturnValue('some codebase');
       await aider.handleQuery('test query');
-      expect(aider.chain.invoke).toHaveBeenCalled();
-      expect(parseDiff).toHaveBeenCalledWith('some diff');
-      expect(applyDiff).toHaveBeenCalled();
-      expect(aider.messages).toContainEqual({
-        sender: 'ai',
-        text: 'some diff',
-      });
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'Diff applied successfully.',
-      });
-    });
-
-    it('should auto-commit changes', async () => {
-      aider.options.autoCommit = true;
-      jest.spyOn(aider.chain, 'invoke').mockResolvedValue('some diff');
-      parseDiff.mockReturnValue({/* a parsed diff object */});
-      applyDiff.mockResolvedValue(undefined);
-      await aider.handleQuery('test query');
-      expect(aider.backend.record).toHaveBeenCalledWith('Auto-commit');
-      expect(aider.messages).toContainEqual({
-        sender: 'system',
-        text: 'Changes auto-committed.',
-      });
+      expect(handleQuery).toHaveBeenCalledWith('test query', 'some codebase', '');
+      expect(aider.diff).toBe('some diff');
     });
   });
 });

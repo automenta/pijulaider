@@ -10,10 +10,10 @@ class UIManager {
     this.rerender = null;
   }
 
-  start() {
+  start(messages) {
     const App = () => (
       <Chat
-        messages={this.aider.messages}
+        messages={messages}
         onSendMessage={this.onSendMessage}
         diff={this.getDiff()}
       />

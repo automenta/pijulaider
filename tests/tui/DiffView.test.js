@@ -1,5 +1,5 @@
 const React = require('react');
-const { render } = require('ink');
+const { render } = require('ink-testing-library');
 const DiffView = require('../../src/tui/DiffView');
 
 describe('DiffView', () => {
@@ -11,8 +11,7 @@ describe('DiffView', () => {
 -console.log("Hello, World!");
 +console.log("Hello, PijulAider!");
 `;
-    const { lastFrame, unmount } = render(<DiffView diff={diff} />);
+    const { lastFrame } = render(<DiffView diff={diff} />);
     expect(lastFrame()).toContain('Hello, PijulAider!');
-    unmount();
   });
 });
