@@ -86,6 +86,16 @@ class GitBackend extends VersioningBackend {
   async undo() {
     await this.unrecord();
   }
+
+  async listTrackedFiles() {
+    const { stdout } = await runCommand('git', ['ls-files']);
+    return stdout.split('\n').filter(Boolean);
+  }
+
+  async listUntrackedFiles() {
+    const { stdout } = await runCommand('git', ['ls-files', '--others', '--exclude-standard']);
+    return stdout.split('\n').filter(Boolean);
+  }
 }
 
 module.exports = GitBackend;

@@ -5,8 +5,12 @@ class StatusCommand {
 
   async execute() {
     const { getBackend, addMessage } = this.dependencies;
-    const status = await getBackend().status();
-    addMessage({ sender: 'system', text: status });
+    try {
+      const status = await getBackend().status();
+      addMessage({ sender: 'system', text: status });
+    } catch (error) {
+      addMessage({ sender: 'system', text: `Error: ${error.message}` });
+    }
   }
 }
 

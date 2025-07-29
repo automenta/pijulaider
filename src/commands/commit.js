@@ -5,8 +5,19 @@ class CommitCommand {
 
   async execute(args) {
     const { getBackend, addMessage } = this.dependencies;
-    await getBackend().record(args.join(' '));
-    addMessage({ sender: 'system', text: 'Changes committed.' });
+    const message = args.join(' ');
+
+    if (!message) {
+      addMessage({ sender: 'system', text: 'Error: A commit message is required.' });
+      return;
+    }
+
+    try {
+      await getBackend().record(message);
+      addMessage({ sender: 'system', text: 'Changes committed.' });
+    } catch (error) {
+      addMessage({ sender: 'system', text: `Error: ${error.message}` });
+    }
   }
 }
 

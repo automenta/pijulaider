@@ -1,13 +1,25 @@
+const { runCommand } = require('../util');
+
 class TestCommand {
   constructor(dependencies) {
     this.dependencies = dependencies;
   }
 
-  async execute() {
-    const { execa, addMessage, handleQuery } = this.dependencies;
+  async execute(args) {
+    const { addMessage, handleQuery } = this.dependencies;
     try {
-      await execa('npm', ['test']);
-      addMessage({ sender: 'system', text: 'All tests passed!' });
+      addMessage({ sender: 'system', text: 'Running tests...' });
+      const { stdout, stderr } = await runCommand('npm', ['test', '--', ...args]);
+      addMessage({ sender: 'system', text: stdout });
+      if (stderr) {
+        addMessage({
+          sender: 'system',
+          text: `Tests failed. Attempting to fix...\n${stderr}`,
+        });
+        await handleQuery(`The tests failed with the following output:\n${stderr}\nPlease fix the tests.`);
+      } else {
+        addMessage({ sender: 'system', text: 'All tests passed!' });
+      }
     } catch (error) {
       addMessage({
         sender: 'system',
@@ -17,12 +29,5 @@ class TestCommand {
     }
   }
 }
-
-// Mock test to satisfy Jest
-describe('TestCommand', () => {
-  it('should have a test', () => {
-    expect(true).toBe(true);
-  });
-});
 
 module.exports = TestCommand;

@@ -82,6 +82,14 @@ class FileBackend extends VersioningBackend {
     }
     this.files.clear();
   }
+
+  async listTrackedFiles() {
+    return Array.from(this.files.keys());
+  }
+
+  async listUntrackedFiles() {
+    return [];
+  }
 }
 
 module.exports = FileBackend;

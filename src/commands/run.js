@@ -1,4 +1,5 @@
-const Terminal = require('../tui/Terminal');
+const pty = require('node-pty');
+const os = require('os');
 
 class RunCommand {
   constructor(dependencies) {
@@ -13,14 +14,27 @@ class RunCommand {
       return;
     }
 
-    const terminal = new Terminal((data) => {
+    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+    const term = pty.spawn(shell, [], {
+      name: 'xterm-color',
+      cols: 80,
+      rows: 30,
+      cwd: process.cwd(),
+      env: process.env,
+    });
+
+    setTerminal(term);
+
+    term.on('data', function (data) {
       addMessage({ sender: 'system', text: data });
     });
 
-    setTerminal(terminal);
+    term.on('exit', () => {
+      setTerminal(null);
+    });
 
     if (args.length > 0) {
-      terminal.write(args.join(' ') + '\r');
+      term.write(args.join(' ') + '\r');
     }
   }
 }

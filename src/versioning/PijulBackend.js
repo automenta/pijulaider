@@ -91,6 +91,19 @@ class PijulBackend extends VersioningBackend {
       await this.unrecord(hash);
     }
   }
+
+  async listTrackedFiles() {
+    const { stdout } = await runCommand('pijul', ['ls']);
+    return stdout.split('\n').filter(Boolean);
+  }
+
+  async listUntrackedFiles() {
+    const { stdout } = await runCommand('pijul', ['status']);
+    return stdout
+      .split('\n')
+      .filter((line) => line.startsWith('?'))
+      .map((line) => line.split(' ')[1]);
+  }
 }
 
 module.exports = PijulBackend;

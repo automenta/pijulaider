@@ -5,9 +5,13 @@ class DiffCommand {
 
   async execute() {
     const { getBackend, addMessage, setDiff } = this.dependencies;
-    const diff = await getBackend().diff();
-    setDiff(diff);
-    addMessage({ sender: 'system', text: 'Diff updated.' });
+    try {
+      const diff = await getBackend().diff();
+      setDiff(diff);
+      addMessage({ sender: 'system', text: diff });
+    } catch (error) {
+      addMessage({ sender: 'system', text: `Error: ${error.message}` });
+    }
   }
 }
 
