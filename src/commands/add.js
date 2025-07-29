@@ -11,7 +11,7 @@ class AddCommand {
       let codebase = getCodebase();
       codebase += `--- ${file} ---\n${content}\n\n`;
       setCodebase(codebase);
-      addMessage({ sender: 'system', text: `Added ${file} to the chat.` });
+      addMessage({ sender: 'system', text: `Added and staged ${file}.` });
     }
   }
 }

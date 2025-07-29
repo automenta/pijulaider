@@ -70,6 +70,11 @@ class GitBackend extends VersioningBackend {
     return stdout;
   }
 
+  async status() {
+    const { stdout } = await runCommand('git', ['status']);
+    return stdout;
+  }
+
   async undo() {
     await this.unrecord('HEAD');
   }

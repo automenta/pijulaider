@@ -5,16 +5,18 @@ class HelpCommand {
   constructor(dependencies) {
     this.dependencies = dependencies;
     this.commandMap = {
-      add: 'Add a file to the chat so the LLM can see it.',
+      add: 'Add a file to the chat and stage it.',
       clear: 'Clear the current codebase context.',
       codebase: 'Show the current codebase.',
+      commit: 'Commit the staged changes.',
       diff: 'Show the current changes.',
       drop: 'Remove a file from the chat.',
       edit: 'Edit a file.',
       help: 'Show this help message.',
       ls: 'List files in the current directory.',
-      record: 'Record the current changes with a message.',
+      record: 'Record the current changes with a message (alias for /commit).',
       run: 'Run a shell command.',
+      status: 'Show the current status of the repository.',
       test: 'Run the test suite.',
       undo: 'Undo the last change.',
     };
