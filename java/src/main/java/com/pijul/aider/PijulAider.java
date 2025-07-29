@@ -1,12 +1,16 @@
 package com.pijul.aider;
 
-import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.*;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
+import com.pijul.aider.commands.*;
+import com.pijul.aider.tui.ChatPanel;
+import com.pijul.aider.tui.InputPanel;
+import com.pijul.aider.tui.StatusPanel;
+import com.pijul.aider.versioning.VersioningBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,40 +28,38 @@ public class PijulAider {
 
         // Create a window
         BasicWindow window = new BasicWindow("Pijul Aider");
-        window.setHints(java.util.Arrays.asList(Window.Hint.CENTERED));
+        window.setHints(java.util.Arrays.asList(Window.Hint.CENTERED, Window.Hint.FULL_SCREEN));
 
         // Create a panel
         Panel panel = new Panel();
         panel.setLayoutManager(new LinearLayout(Direction.VERTICAL));
 
-        // Add a label
-        panel.addComponent(new Label("Welcome to Pijul Aider!"));
+        // Create TUI components
+        ChatPanel chatPanel = new ChatPanel();
+        StatusPanel statusPanel = new StatusPanel();
 
-        // Add a text box for input
-        TextBox textBox = new TextBox();
-        panel.addComponent(textBox);
-
-        // Add a button to send messages
-        Button sendButton = new Button("Send", () -> {
-            String userInput = textBox.getText();
-            if (userInput != null && !userInput.isEmpty()) {
-                // This is a placeholder for the API key.
-                // In a real application, this should be handled securely.
-                String apiKey = System.getenv("OPENAI_API_KEY");
-                if (apiKey == null || apiKey.isEmpty()) {
-                    logger.error("OPENAI_API_KEY environment variable not set.");
-                    return;
-                }
-                LLMManager llmManager = new LLMManager(apiKey);
-                String response = llmManager.chat(userInput);
-                // Display the response in the TUI.
-                // For now, we'll just print to the console.
-                logger.info("Response: " + response);
-            }
-        });
-        panel.addComponent(sendButton);
+        // Create core components
+        FileManager fileManager = new FileManager();
+        VersioningBackend versioningBackend = BackendManager.getBackend();
+        CommandManager commandManager = new CommandManager();
+        LLMManager llmManager = new LLMManager(System.getenv("OPENAI_API_KEY"));
+        InputHandler inputHandler = new InputHandler(commandManager, llmManager, chatPanel);
+        InputPanel inputPanel = new InputPanel(inputHandler::handle);
 
 
+        panel.addComponent(chatPanel);
+        panel.addComponent(inputPanel);
+        panel.addComponent(statusPanel);
+
+
+        // Register commands
+        commandManager.registerCommand("/add", new AddCommand(fileManager, chatPanel)::execute);
+        commandManager.registerCommand("/diff", new DiffCommand(versioningBackend, chatPanel)::execute);
+        commandManager.registerCommand("/record", new RecordCommand(versioningBackend, chatPanel)::execute);
+        commandManager.registerCommand("/help", new HelpCommand(chatPanel)::execute);
+
+
+        // Set the main component of the window
         window.setComponent(panel);
 
         // Create a GUI and add the window
