@@ -1,12 +1,12 @@
 package com.pijul.aider.llm;
 
 import com.pijul.aider.Container;
-import dev.langchain4j.ChatPromptTemplate;
-import dev.langchain4j.LLM;
-import dev.langchain4j.LLMChain;
-import dev.langchain4j.OutputParser;
-import dev.langchain4j.prompts.PromptTemplate;
-import dev.langchain4j.output_parsers.StringOutputParser;
+import dev.langchain4j.googleai.gemini.ChatPromptTemplate;
+import dev.langchain4j.googleai.gemini.LLM;
+import dev.langchain4j.googleai.gemini.LLMChain;
+import dev.langchain4j.googleai.gemini.output.OutputParser;
+import dev.langchain4j.googleai.gemini.prompts.PromptTemplate;
+import dev.langchain4j.googleai.gemini.output_parsers.StringOutputParser;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 

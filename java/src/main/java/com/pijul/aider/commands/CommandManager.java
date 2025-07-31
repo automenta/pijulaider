@@ -1,50 +1,55 @@
 package com.pijul.aider.commands;
 
 import com.pijul.aider.Container;
-import java.lang.reflect.Constructor;
+import com.pijul.aider.MessageHandler;
+import com.pijul.aider.commands.exit.ExitCommand;
+import com.pijul.aider.commands.help.HelpCommand;
 import java.util.HashMap;
 import java.util.Map;
 
 public class CommandManager {
-    private final Map<String, Command> commands = new HashMap<>();
-    private final Container container;
+    private final MessageHandler messageHandler;
+    private final Map<String, Command> commands;
 
     public CommandManager(Container container) {
-        this.container = container;
-        loadCommands();
+        this.messageHandler = container.getMessageHandler();
+        this.commands = new HashMap<>();
+        registerCommand("help", new HelpCommand(container));
+        registerCommand("exit", new ExitCommand(container));
     }
 
-    private void loadCommands() {
-        // List of command classes to load dynamically
-        String[] commandClasses = {
-            "com.pijul.aider.commands.add.AddCommand",
-            "com.pijul.aider.commands.apply.ApplyCommand",
-            // Add more command classes as needed
-        };
+    public void registerCommand(String name, Command command) {
+        commands.put(name, command);
+    }
 
-        for (String className : commandClasses) {
-            try {
-                Class<?> clazz = Class.forName(className);
-                if (Command.class.isAssignableFrom(clazz)) {
-                    Constructor<?> constructor = clazz.getDeclaredConstructor();
-                    constructor.setAccessible(true);
-                    Command command = (Command) constructor.newInstance();
-                    String commandName = className.substring(className.lastIndexOf('.') + 1).replace("Command", "").toLowerCase();
-                    commands.put(commandName, command);
-                }
-            } catch (Exception e) {
-                System.err.println("Error loading command: " + className);
-                e.printStackTrace();
-            }
+    public void processInput(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return;
         }
-    }
 
-    public void executeCommand(String commandName, String[] args) {
+        String[] parts = input.trim().split(" ", 2);
+        String commandName = parts[0].toLowerCase();
+        String[] args = parts.length > 1 ? parts[1].split(" ") : new String[0];
+
         Command command = commands.get(commandName);
         if (command != null) {
             command.execute(args);
         } else {
-            System.out.println("Unknown command: " + commandName);
+            messageHandler.addMessage("system", "Unknown command: " + commandName);
         }
+    }
+
+    public void startListening() {
+        for (Command command : commands.values()) {
+            command.init();
+        }
+        System.out.println("All commands initialized and listening.");
+    }
+
+    public void stopListening() {
+        for (Command command : commands.values()) {
+            command.cleanup();
+        }
+        System.out.println("All commands stopped.");
     }
 }
